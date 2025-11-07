@@ -32,6 +32,7 @@ class EmployeeController extends Controller
 
             'email' => ['required', 'email', 'max:255', 'unique:employees,email'],
             'address' => ['nullable', 'string', 'max:500'],
+            'designation' => 'nullable|string|max:255',
 
             'join_date' => ['nullable', 'date'],
             'leave_date' => ['nullable', 'date', 'after_or_equal:join_date'],
@@ -93,6 +94,7 @@ class EmployeeController extends Controller
                 'max:255',
                 Rule::unique('employees', 'email')->ignore($employee->id), // <-- important
             ],
+            'designation' => 'nullable|string|max:255',
             'address' => ['nullable', 'string', 'max:500'],
             'join_date' => ['nullable', 'date'],
             'leave_date' => ['nullable', 'date', 'after_or_equal:join_date'],

@@ -16,8 +16,6 @@ use App\Http\Controllers\Admin\CategoryAdminController;
 |--------------------------------------------------------------------------
 | Public redirect
 |--------------------------------------------------------------------------
-| If not authenticated -> /login
-| If authenticated -> /dashboard
 */
 Route::get('/', fn() => auth()->check()
     ? redirect()->route('dashboard')
@@ -25,19 +23,26 @@ Route::get('/', fn() => auth()->check()
 
 /*
 |--------------------------------------------------------------------------
-| Auth routes (guest only)
+| Auth (guest-only)
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
+    // Login
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.attempt');
 
+    // Password reset
     Route::get('/password/forgot', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
     Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
     Route::get('/password/reset/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
     Route::post('/password/reset', [ResetPasswordController::class, 'reset'])->name('password.update');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Logout (auth-only)
+|--------------------------------------------------------------------------
+*/
 Route::post('/logout', [LoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
@@ -50,61 +55,70 @@ Route::post('/logout', [LoginController::class, 'logout'])
 Route::middleware(['auth'])->group(function () {
 
     /*
-    |----------------------------- Dashboard ------------------------------
-    | Dashboard is the default landing page for authenticated users.
-    | Both roles (admin, super_admin) can access.
+    |----------------------------------------------------------------------
+    | Dashboard (admin & super_admin)
+    |----------------------------------------------------------------------
     */
     Route::get('/dashboard', [AdminController::class, 'index'])
         ->middleware('role:admin,super_admin')
         ->name('dashboard');
 
     /*
-    |----------------------------- Admin area -----------------------------
-    | All admin pages live under /admin with route names admin.*
-
-
-
+    |----------------------------------------------------------------------
+    | Admin area (/admin, names: admin.*)
+    |----------------------------------------------------------------------
     */
+    Route::prefix('admin')->name('admin.')->group(function () {
 
-
-
-    Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-
-        // Factories (admin + super_admin)
+        /*
+        |------------------------------------------------------------------
+        | Factories (admin & super_admin) — resource without "show"
+        |------------------------------------------------------------------
+        */
         Route::middleware('role:admin,super_admin')->group(function () {
             Route::resource('factories', FactoryController::class)->except(['show']);
         });
 
-        // Global category admin (super_admin only)
+        /*
+        |------------------------------------------------------------------
+        | Categories (WordPress-style)
+        |------------------------------------------------------------------
+        | - index + quick-create available to admin & super_admin
+        |   (for runtime category creation from forms)
+        | - store/update/destroy restricted to super_admin
+        |------------------------------------------------------------------
+        */
+        Route::middleware('role:admin,super_admin')->group(function () {
+            Route::get('categories', [CategoryAdminController::class, 'index'])
+                ->name('categories.index'); // ?scope=factory
+            Route::post('categories/quick-create', [CategoryAdminController::class, 'quickCreate'])
+                ->name('categories.quick-create');
+        });
+
         Route::middleware('role:super_admin')->group(function () {
-            Route::get('categories', [CategoryAdminController::class, 'index'])->name('categories.index'); // ?scope=factory
-            Route::post('categories/root', [CategoryAdminController::class, 'storeRoot'])->name('categories.root.store');
-            Route::post('categories/child', [CategoryAdminController::class, 'storeChild'])->name('categories.child.store');
+            Route::post('categories', [CategoryAdminController::class, 'store'])->name('categories.store');
+            Route::put('categories/{category}', [CategoryAdminController::class, 'update'])->name('categories.update');
             Route::delete('categories/{category}', [CategoryAdminController::class, 'destroy'])->name('categories.destroy');
         });
 
-    });
-    Route::prefix('admin')->name('admin.')->group(function () {
-
         /*
-        |------------------------- Employees (super_admin only) -------------
-        | Full CRUD for Employees
-        | URL: /admin/employees/*
-        | Names: admin.employees.*
+        |------------------------------------------------------------------
+        | Employees (super_admin only) — full CRUD without "show"
+        |------------------------------------------------------------------
         */
         Route::middleware('role:super_admin')->group(function () {
             Route::resource('employees', EmployeeController::class)->except(['show']);
         });
 
         /*
-        |------------------------- Users -----------------------------------
-        | Index is allowed for admin & super_admin (list only).
-        | Create/Store/Edit/Update/Destroy/Deactivate are super_admin only.
-        | URL: /admin/users/*
-        | Names: admin.users.*
+        |------------------------------------------------------------------
+        | Users
+        |------------------------------------------------------------------
+        | - index: admin & super_admin
+        | - create/store/edit/update/destroy/deactivate: super_admin only
+        |------------------------------------------------------------------
         */
         Route::middleware('role:admin,super_admin')->group(function () {
-            // List only
             Route::resource('users', UserController::class)->only(['index']);
         });
 

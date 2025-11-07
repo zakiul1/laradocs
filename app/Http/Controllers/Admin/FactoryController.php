@@ -9,7 +9,6 @@ use App\Models\FactoryDocument;
 use App\Models\FactoryPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class FactoryController extends Controller
 {
@@ -23,27 +22,47 @@ class FactoryController extends Controller
     {
         return $this->formView(new Factory());
     }
+
     public function edit(Factory $factory)
     {
         $factory->load(['photos', 'documents', 'categories']);
         return $this->formView($factory);
     }
 
+    /**
+     * Shared form view.
+     * Sends a flat array of factory-scope categories: [{id, name, parent_id}]
+     */
     protected function formView(Factory $factory)
     {
-        // Only factory-scope categories
-        $categories = Category::scope('factory')
-            ->with('children:id,parent_id,name')
-            ->orderBy('position')
-            ->get();
+        // Flat list (scope=factory)
+        // Flat list (scope=factory)
+        $categories = Category::query()
+            ->where('scope', 'factory')
+            ->select('id', 'name', 'parent_id')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($c) => [
+                'id' => (int) $c->id,
+                'name' => $c->name,
+                'parent_id' => is_null($c->parent_id) ? null : (int) $c->parent_id,
+            ])
+            ->toArray();
+
+        //dd($categories);
+
+
 
         // Selected category ids for edit
-        $selected = $factory->exists ? $factory->categories()->pluck('categories.id')->toArray() : [];
+        $selected = $factory->exists
+            ? $factory->categories()->pluck('categories.id')->map(fn($id) => (int) $id)->toArray()
+            : [];
+
 
         return view('admin.factories.form', [
             'factory' => $factory,
-            'categories' => $categories,
-            'selected' => $selected,
+            'categories' => $categories,   // flat array for Alpine
+            'selected' => $selected,      // [] on create; ids on edit
             'isEdit' => $factory->exists,
         ]);
     }
@@ -55,12 +74,13 @@ class FactoryController extends Controller
         DB::transaction(function () use ($request, $data) {
             $data['created_by'] = $request->user()->id;
             $data['updated_by'] = $request->user()->id;
+
             $factory = Factory::create($data);
 
             $this->handleUploads($request, $factory);
 
-            // sync categories (multi)
-            $catIds = $request->input('category_ids', []);
+            // sync categories (filtered to factory scope)
+            $catIds = $this->filterFactoryScopeCategoryIds($request->input('category_ids', []));
             $factory->syncCategories($catIds);
         });
 
@@ -75,23 +95,27 @@ class FactoryController extends Controller
             $data['updated_by'] = $request->user()->id;
             $factory->update($data);
 
-            // handle removals + uploads
-            if ($request->filled('remove_photos')) {
-                foreach ($factory->photos()->whereIn('id', $request->remove_photos)->get() as $p) {
+            // removals
+            $removePhotoIds = (array) $request->input('remove_photos', []);
+            if (!empty($removePhotoIds)) {
+                foreach ($factory->photos()->whereIn('id', $removePhotoIds)->get() as $p) {
                     \Storage::disk('public')->delete($p->path);
                     $p->delete();
                 }
             }
-            if ($request->filled('remove_docs')) {
-                foreach ($factory->documents()->whereIn('id', $request->remove_docs)->get() as $d) {
+
+            $removeDocIds = (array) $request->input('remove_docs', []);
+            if (!empty($removeDocIds)) {
+                foreach ($factory->documents()->whereIn('id', $removeDocIds)->get() as $d) {
                     \Storage::disk('public')->delete($d->path);
                     $d->delete();
                 }
             }
+
             $this->handleUploads($request, $factory);
 
-            // sync categories (multi)
-            $catIds = $request->input('category_ids', []);
+            // sync categories (filtered to factory scope)
+            $catIds = $this->filterFactoryScopeCategoryIds($request->input('category_ids', []));
             $factory->syncCategories($catIds);
         });
 
@@ -101,10 +125,12 @@ class FactoryController extends Controller
     public function destroy(Factory $factory)
     {
         DB::transaction(function () use ($factory) {
-            foreach ($factory->photos as $p)
+            foreach ($factory->photos as $p) {
                 \Storage::disk('public')->delete($p->path);
-            foreach ($factory->documents as $d)
+            }
+            foreach ($factory->documents as $d) {
                 \Storage::disk('public')->delete($d->path);
+            }
             $factory->categories()->detach();
             $factory->delete();
         });
@@ -112,6 +138,9 @@ class FactoryController extends Controller
         return redirect()->route('admin.factories.index')->with('status', 'Factory deleted.');
     }
 
+    /**
+     * Validation rules
+     */
     protected function validated(Request $request): array
     {
         return $request->validate([
@@ -121,7 +150,7 @@ class FactoryController extends Controller
             'lines' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'notes' => ['nullable', 'string', 'max:2000'],
 
-            // multi-categories
+            // categories
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
 
@@ -135,6 +164,9 @@ class FactoryController extends Controller
         ]);
     }
 
+    /**
+     * Handle file uploads (photos & documents)
+     */
     protected function handleUploads(Request $request, Factory $factory): void
     {
         if ($request->hasFile('photos')) {
@@ -148,6 +180,7 @@ class FactoryController extends Controller
                 ]);
             }
         }
+
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $file) {
                 $path = $file->store("factories/{$factory->id}/docs", 'public');
@@ -159,5 +192,19 @@ class FactoryController extends Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Keep only category IDs that belong to scope = 'factory'
+     */
+    protected function filterFactoryScopeCategoryIds(array $ids): array
+    {
+        if (empty($ids))
+            return [];
+        return Category::query()
+            ->whereIn('id', $ids)
+            ->where('scope', 'factory')
+            ->pluck('id')
+            ->all();
     }
 }

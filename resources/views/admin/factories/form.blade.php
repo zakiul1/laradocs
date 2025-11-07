@@ -24,7 +24,15 @@
         <x-alert type="success" :message="session('status')" />
     @endif
 
-    <x-card x-data="factoryForm(@js($categories), @js($selected), @js($isEdit ? $factory->toArray() : null))" x-init="init()" stickyFooter :bodyClass="'p-6 pb-28'">
+    <x-card x-data="factoryForm(
+        {{ Js::from($categories) }},
+        {{ Js::from(old('category_ids', $selected)) }},
+        {{ Js::from($isEdit ? $factory->toArray() : null) }}
+    )" x-init="init()">
+
+
+
+
         <form id="factory-form" x-on:submit="submitting = true" method="POST"
             action="{{ $isEdit ? route('admin.factories.update', $factory) : route('admin.factories.store') }}"
             enctype="multipart/form-data" class="space-y-8">
@@ -37,9 +45,9 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="group">
                     <x-label value="Factory Name" class="text-[0.95rem] group-focus-within:text-gray-900" />
-                    <x-input name="name" required :value="old('name', $factory->name)"
+                    <x-input name="name" required :value="old('name', $factory->name ?? '')"
                         class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
-                                    focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
+                               focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
                     @error('name')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -47,9 +55,9 @@
 
                 <div class="group">
                     <x-label value="Phone (BD)" class="text-[0.95rem] group-focus-within:text-gray-900" />
-                    <x-input name="phone" :value="old('phone', $factory->phone)"
+                    <x-input name="phone" :value="old('phone', $factory->phone ?? '')"
                         class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
-                                    focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
+                               focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
                         placeholder="+8801XXXXXXXXX or 01XXXXXXXXX" />
                     @error('phone')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
@@ -58,16 +66,16 @@
 
                 <div class="group md:col-span-2">
                     <x-label value="Address" class="text-[0.95rem] group-focus-within:text-gray-900" />
-                    <x-input name="address" :value="old('address', $factory->address)"
+                    <x-input name="address" :value="old('address', $factory->address ?? '')"
                         class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
-                                    focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
+                               focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
                 </div>
 
                 <div class="group">
                     <x-label value="Garments Lines" class="text-[0.95rem] group-focus-within:text-gray-900" />
-                    <x-input name="lines" type="number" min="0" step="1" :value="old('lines', $factory->lines)"
+                    <x-input name="lines" type="number" min="0" step="1" :value="old('lines', $factory->lines ?? '')"
                         class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
-                                    focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
+                               focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition" />
                     @error('lines')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -75,44 +83,61 @@
 
                 <div class="group md:col-span-2">
                     <x-label value="Notes" class="text-[0.95rem] group-focus-within:text-gray-900" />
-                    <textarea name="notes"
+                    <textarea name="notes" rows="3"
                         class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
-                                     focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
-                        rows="3">{{ old('notes', $factory->notes) }}</textarea>
+                               focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition">{{ old('notes', $factory->notes ?? '') }}</textarea>
                     @error('notes')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
                 </div>
             </div>
 
-            {{-- Global Categories (scope=factory): choose Root, then select children (multi) --}}
+            {{-- Categories (scope=factory): pick root -> check children; runtime add --}}
             <div class="md:col-span-2">
                 <div x-data="categoryPicker()" class="space-y-4">
-                    <div class="group">
-                        <x-label value="Category group (root)" class="text-[0.95rem]" />
-                        <select x-model.number="parentId"
-                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
+                    <div class="flex items-end gap-3">
+                        <div class="flex-1">
+                            <x-label value="Category group (root)" class="text-[0.95rem]" />
+                            <select x-ref="rootSelect" x-model.number="parentId"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5
                                        focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition">
-                            <option value="">— Select a root category —</option>
-                            <template x-for="p in parents" :key="p.id">
-                                <option :value="p.id" x-text="p.name"></option>
-                            </template>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">Scope: <code>factory</code></p>
+                                <option value="">— Select a root category —</option>
+                                <template x-for="p in parents" :key="'p-' + p.id">
+                                    <option :value="p.id" x-text="p.name"></option>
+                                </template>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Scope: <code>factory</code></p>
+                        </div>
+
+                        {{-- runtime add --}}
+                        <div>
+                            <button type="button" @click="open = true"
+                                class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" />
+                                </svg>
+                                Add new
+                            </button>
+                        </div>
                     </div>
 
+                    {{-- children of selected root --}}
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2" x-show="parentId">
-                        <template x-for="child in children" :key="child.id">
+                        <template x-for="child in children" :key="'c-' + child.id">
                             <label class="flex items-center gap-2 rounded-lg border px-3 py-2 bg-gray-50">
                                 <input type="checkbox" class="rounded cursor-pointer" :value="child.id"
                                     @change="toggle(child.id)" :checked="isChecked(child.id)">
                                 <span x-text="child.name"></span>
                             </label>
                         </template>
+                        <p class="text-sm text-gray-500" x-show="parentId && children.length === 0">
+                            No subcategories yet.
+                        </p>
                     </div>
 
                     {{-- Hidden inputs to submit the selection --}}
-                    <template x-for="id in selected" :key="'cat-' + id">
+                    <template x-for="id in selected" :key="'sel-' + id">
                         <input type="hidden" name="category_ids[]" :value="id">
                     </template>
 
@@ -122,6 +147,45 @@
                     @error('category_ids.*')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
+
+                    {{-- Add new modal --}}
+                    <div x-cloak x-show="open" class="fixed inset-0 bg-black/40 grid place-items-center z-50">
+                        <div class="bg-white rounded-xl shadow p-6 w-full max-w-lg">
+                            <h3 class="text-base font-semibold mb-3">Add New Category</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <x-label value="Name" />
+                                    <x-input x-model="form.name" placeholder="e.g. Compliance" />
+                                </div>
+                                <div>
+                                    <x-label value="Parent (optional)" />
+                                    <select x-model="form.parent_id" class="w-full rounded-md border px-3 py-2">
+                                        <option value="">None (create as root)</option>
+                                        <template x-for="p in allForSelect" :key="'opt-' + p.id">
+                                            <option :value="p.id" x-text="p.label"></option>
+                                        </template>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Choose a parent to make it a subcategory.</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-5">
+                                <button type="button" class="px-4 py-2 rounded-md border bg-white hover:bg-gray-50"
+                                    @click="open=false">Cancel</button>
+                                <button type="button" class="px-4 py-2 rounded-md bg-gray-900 text-white"
+                                    :disabled="creating" @click="create()">
+                                    <span x-show="!creating">Create</span>
+                                    <span x-show="creating" class="inline-flex items-center gap-2">
+                                        <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                            <circle cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-opacity=".25" stroke-width="4" />
+                                            <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="4" />
+                                        </svg>
+                                        Creating…
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -134,7 +198,8 @@
                         <label
                             class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm cursor-pointer">
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
                             </svg>
                             <span>Add photos</span>
                             <input type="file" class="hidden" multiple name="photos[]" accept="image/*"
@@ -143,7 +208,6 @@
                     </div>
 
                     <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {{-- existing (edit) --}}
                         @if ($isEdit)
                             @foreach ($factory->photos as $p)
                                 <label class="relative rounded-xl overflow-hidden border block">
@@ -155,7 +219,6 @@
                             @endforeach
                         @endif
 
-                        {{-- new previews --}}
                         <template x-for="(ph, i) in photoPreviews" :key="'ph-' + i">
                             <div class="relative rounded-xl overflow-hidden border">
                                 <img :src="ph" class="w-full h-28 object-cover" alt="">
@@ -203,7 +266,6 @@
                         </label>
                     </div>
 
-                    {{-- existing docs --}}
                     @if ($isEdit)
                         <div class="mt-4 space-y-2">
                             @foreach ($factory->documents as $d)
@@ -219,7 +281,6 @@
                         </div>
                     @endif
 
-                    {{-- new docs --}}
                     <div class="mt-4 space-y-2">
                         <template x-for="(f,i) in docFiles" :key="'doc-' + i">
                             <div class="flex items-center justify-between rounded-lg border bg-gray-50 px-3 py-2">
@@ -278,21 +339,70 @@
     </x-card>
 
     {{-- Alpine helpers --}}
+
     <script>
         function factoryForm(categories, selectedIds, existing) {
             return {
                 submitting: false,
-                // categories from PHP (scope: factory), including children
-                cats: categories || [],
-                // selected category IDs for edit
-                selected: Array.isArray(selectedIds) ? [...selectedIds] : [],
-                // upload UI
+
+                // Flat list: [{id, name, parent_id}]
+                cats: [],
+
+                // Selected category IDs
+                selected: Array.isArray(selectedIds) ? selectedIds.map(Number) : [],
+
+                // uploads
                 photoPreviews: [],
                 docFiles: [],
                 loadingPhotos: false,
                 loadingDocs: false,
 
-                init() {},
+                init() {
+                    // Normalize input (supports nested with 'children' OR already flat)
+                    const normalize = (input) => {
+                        const out = [];
+                        const walk = (arr) => {
+                            (arr || []).forEach(n => {
+                                out.push({
+                                    id: Number(n.id),
+                                    name: n.name,
+                                    parent_id: n.parent_id ?? null
+                                });
+                                if (Array.isArray(n.children) && n.children.length) walk(n.children);
+                            });
+                        };
+                        if (Array.isArray(input)) {
+                            if (input[0] && typeof input[0] === 'object' && 'children' in input[0]) walk(input);
+                            else input.forEach(n => out.push({
+                                id: Number(n.id),
+                                name: n.name,
+                                parent_id: n.parent_id ?? null
+                            }));
+                        }
+                        return out;
+                    };
+
+                    this.cats = normalize(categories);
+
+                    // Auto-pick first root once cats are ready so options render
+                    this.$nextTick(() => {
+                        const roots = this.cats.filter(c =>
+                            c.parent_id === null || c.parent_id === 0 || typeof c.parent_id === 'undefined'
+                        );
+                        if (roots.length && !this.$refs?.rootSelect?.value) {
+                            // if edit already has children selected, try to set parent accordingly
+                            const firstSel = this.selected[0];
+                            if (firstSel) {
+                                const sel = this.cats.find(c => c.id === Number(firstSel));
+                                if (sel && sel.parent_id) {
+                                    this.parentId = Number(sel.parent_id);
+                                    return;
+                                }
+                            }
+                            this.parentId = roots[0].id;
+                        }
+                    });
+                },
 
                 // Photo helpers
                 addPhotos(e) {
@@ -337,26 +447,103 @@
         function categoryPicker() {
             return {
                 parentId: null,
-                // read from the parent x-data scope (factoryForm)
+                open: false,
+                creating: false,
+                form: {
+                    name: '',
+                    parent_id: ''
+                },
+
                 get parents() {
-                    // roots: parent_id === null
-                    return this.$parent.cats.filter(c => c.parent_id === null);
+                    return (this.$parent?.cats || [])
+                        .filter(c => c.parent_id === null || c.parent_id === 0 || typeof c.parent_id === 'undefined')
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 },
                 get children() {
-                    return this.$parent.cats.filter(c => c.parent_id === this.parentId);
+                    if (!this.parentId) return [];
+                    return (this.$parent?.cats || [])
+                        .filter(c => Number(c.parent_id) === Number(this.parentId))
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 },
                 get selected() {
-                    return this.$parent.selected;
+                    return this.$parent?.selected || [];
                 },
+                get allForSelect() {
+                    const byParent = {};
+                    (this.$parent?.cats || []).forEach(c => {
+                        const pid = c.parent_id ?? 0;
+                        (byParent[pid] ||= []).push(c);
+                    });
+                    const build = (pid = 0, depth = 0) => {
+                        const arr = (byParent[pid] || []).sort((a, b) => a.name.localeCompare(b.name));
+                        return arr.flatMap(c => [{
+                                id: c.id,
+                                label: (depth ? '—'.repeat(depth) + ' ' : '') + c.name
+                            }]
+                            .concat(build(c.id, depth + 1))
+                        );
+                    };
+                    return build(0, 0);
+                },
+
                 toggle(id) {
+                    id = Number(id);
                     const i = this.selected.indexOf(id);
                     if (i === -1) this.selected.push(id);
                     else this.selected.splice(i, 1);
                 },
                 isChecked(id) {
-                    return this.selected.includes(id);
+                    return this.selected.includes(Number(id));
+                },
+
+                async create() {
+                    if (!this.form.name.trim()) return;
+                    this.creating = true;
+                    try {
+                        const res = await fetch('{{ route('admin.categories.quick-create') }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                scope: 'factory',
+                                name: this.form.name,
+                                parent_id: this.form.parent_id || null,
+                            }),
+                        });
+                        if (!res.ok) throw new Error('Failed');
+                        const data = await res.json();
+
+                        const pid = this.form.parent_id ? Number(this.form.parent_id) : null;
+                        (this.$parent?.cats || []).push({
+                            id: Number(data.id),
+                            name: data.name,
+                            parent_id: pid
+                        });
+
+                        // Ensure correct root is selected so new child shows
+                        if (pid && Number(this.parentId) !== pid) this.parentId = pid;
+                        if (!pid && !this.parentId) this.parentId = Number(data.id);
+
+                        // Auto-select the new category
+                        if (!this.selected.includes(Number(data.id))) this.selected.push(Number(data.id));
+
+                        // Reset modal
+                        this.form = {
+                            name: '',
+                            parent_id: ''
+                        };
+                        this.open = false;
+                    } catch (e) {
+                        alert('Could not create category.');
+                    } finally {
+                        this.creating = false;
+                    }
                 }
             }
         }
     </script>
+
 @endsection

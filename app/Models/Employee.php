@@ -14,6 +14,7 @@ class Employee extends Model
         'name',
         'phone',
         'email',
+        'designation',
         'address',
         'join_date',
         'leave_date',

@@ -10,8 +10,11 @@ return new class extends Migration {
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('designation')->nullable();
+
             $table->string('phone');                // BD format validated in controller
             $table->string('email')->unique();
+
             $table->string('photo_path')->nullable(); // storage path
             $table->string('address')->nullable();
             $table->date('join_date')->nullable();
