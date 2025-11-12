@@ -4,70 +4,46 @@
     <div x-data>
         <div class="max-w-7xl mx-auto p-6 space-y-6">
             <header class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Employees</h1>
-
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('admin.employees.create') }}"
-                        class="px-4 py-2 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
-                        + Add Employee
-                    </a>
-                </div>
+                <h1 class="text-2xl font-bold">Banks</h1>
+                <a href="{{ route('admin.banks.create') }}"
+                    class="px-4 py-2 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
+                    + Add Bank
+                </a>
             </header>
 
-            {{-- Toast (Global from app layout will handle this now) --}}
-
-            {{-- Filters --}}
             @php
                 $q = request('q');
-                $gender = request('gender');
-                $status = request('status');
-                $designation = request('designation');
+                $type = request('type');
+                $country = request('country');
                 $sort = request('sort', 'created_at');
                 $dir = request('dir', 'desc');
                 $nextDir = $dir === 'asc' ? 'desc' : 'asc';
-                $designations = $designations ?? [];
             @endphp
 
+            {{-- Filters --}}
             <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-3">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium mb-1">Search</label>
-                    <input name="q" value="{{ $q }}"
-                        placeholder="Search name / phone / email / designation"
+                    <input name="q" value="{{ $q }}" placeholder="Search name / email / phone / note"
                         class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
                         x-on:keydown.window.prevent.slash="$el.focus()" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Gender</label>
-                    <select name="gender"
+                    <label class="block text-sm font-medium mb-1">Type</label>
+                    <select name="type"
                         class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
                         <option value="">All</option>
-                        @foreach (['Male', 'Female', 'Other'] as $g)
-                            <option value="{{ $g }}" @selected($gender === $g)>{{ $g }}</option>
+                        @foreach (['Customer Bank', 'Shipper Bank'] as $t)
+                            <option value="{{ $t }}" @selected($type === $t)>{{ $t }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Status</label>
-                    <select name="status"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
-                        <option value="">All</option>
-                        @foreach (['Active', 'Inactive', 'Resigned'] as $s)
-                            <option value="{{ $s }}" @selected($status === $s)>{{ $s }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium mb-1">Designation</label>
-                    <select name="designation"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
-                        <option value="">All</option>
-                        @foreach ($designations as $d)
-                            <option value="{{ $d }}" @selected($designation === $d)>{{ $d }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-sm font-medium mb-1">Country</label>
+                    <input name="country" value="{{ $country }}"
+                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2" />
                 </div>
 
                 <div class="md:col-span-5 flex gap-3">
@@ -75,7 +51,7 @@
                         class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                         Filter
                     </button>
-                    <a href="{{ route('admin.employees.index') }}"
+                    <a href="{{ route('admin.banks.index') }}"
                         class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                         Reset
                     </a>
@@ -89,11 +65,11 @@
                         @php
                             $columns = [
                                 'name' => 'Name',
-                                'phone' => 'Phone',
+                                'type' => 'Type',
                                 'email' => 'Email',
-                                'designation' => 'Designation',
-                                'status' => 'Status',
-                                'join_date' => 'Join Date',
+                                'phone' => 'Phone',
+                                'country' => 'Country',
+                                'created_at' => 'Created',
                             ];
                         @endphp
                         <tr>
@@ -112,44 +88,19 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @forelse ($employees as $emp)
+                        @forelse ($banks as $b)
                             <tr class="text-sm">
                                 <td class="px-4 py-3">
-                                    <div class="flex items-center gap-3">
-                                        @if ($emp->photo_url)
-                                            <img src="{{ $emp->photo_url }}" class="h-10 w-10 rounded-xl object-cover"
-                                                alt="">
-                                        @else
-                                            <div
-                                                class="h-10 w-10 rounded-xl bg-gray-200 dark:bg-gray-700 grid place-items-center">
-                                                👤
-                                            </div>
-                                        @endif
-                                        <a class="font-semibold hover:underline"
-                                            href="{{ route('admin.employees.show', $emp) }}">{{ $emp->name }}</a>
-                                    </div>
+                                    <a class="font-semibold hover:underline"
+                                        href="{{ route('admin.banks.show', $b) }}">{{ $b->name }}</a>
                                 </td>
-                                <td class="px-4 py-3">{{ $emp->phone }}</td>
-                                <td class="px-4 py-3">{{ $emp->email ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $emp->designation ?? '—' }}</td>
-                                <td class="px-4 py-3">
-                                    @php
-                                        $badge = match ($emp->status) {
-                                            'Active'
-                                                => 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-                                            'Inactive'
-                                                => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-                                            'Resigned'
-                                                => 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-                                            default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-                                        };
-                                    @endphp
-                                    <span
-                                        class="px-2 py-1 rounded-xl text-xs {{ $badge }}">{{ $emp->status }}</span>
-                                </td>
-                                <td class="px-4 py-3">{{ optional($emp->join_date)->format('Y-m-d') }}</td>
+                                <td class="px-4 py-3">{{ $b->type }}</td>
+                                <td class="px-4 py-3">{{ $b->email ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $b->phone ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $b->country ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $b->created_at?->format('Y-m-d') }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('admin.employees.edit', $emp) }}"
+                                    <a href="{{ route('admin.banks.edit', $b) }}"
                                         class="px-3 py-1.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                                         Edit
                                     </a>
@@ -157,19 +108,19 @@
                                         class="px-3 py-1.5 rounded-xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90"
                                         x-data
                                         @click="
-                                            $dispatch('open-delete', {
-                                                url: '{{ route('admin.employees.destroy', $emp) }}',
-                                                title: 'Delete Employee',
-                                                message: 'Are you sure you want to delete this employee?'
-                                            })
-                                        ">
+                                        $dispatch('open-delete', {
+                                            url: '{{ route('admin.banks.destroy', $b) }}',
+                                            title: 'Delete Bank',
+                                            message: 'Are you sure you want to delete this bank?'
+                                        })
+                                    ">
                                         Delete
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-gray-500">No employees found.</td>
+                                <td colspan="7" class="px-4 py-6 text-center text-gray-500">No banks found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -177,11 +128,11 @@
             </div>
 
             <div class="pt-2">
-                {{ $employees->links() }}
+                {{ $banks->links() }}
             </div>
         </div>
 
-        {{-- Global delete modal (no soft delete option) --}}
+        {{-- Inline delete modal (same pattern you use) --}}
         <div x-data="{ open: false, url: '', title: 'Delete Confirmation', message: 'Are you sure you want to delete this item?' }"
             x-on:open-delete.window="open = true; url = $event.detail.url; title = $event.detail.title ?? title; message = $event.detail.message ?? message;"
             x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">

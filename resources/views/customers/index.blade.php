@@ -4,57 +4,41 @@
     <div x-data>
         <div class="max-w-7xl mx-auto p-6 space-y-6">
             <header class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Employees</h1>
-
-                <div class="flex items-center gap-3">
-                    <a href="{{ route('admin.employees.create') }}"
-                        class="px-4 py-2 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
-                        + Add Employee
-                    </a>
-                </div>
+                <h1 class="text-2xl font-bold">Customers</h1>
+                <a href="{{ route('admin.customers.create') }}"
+                    class="px-4 py-2 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
+                    + Add Customer
+                </a>
             </header>
 
-            {{-- Toast (Global from app layout will handle this now) --}}
-
-            {{-- Filters --}}
             @php
                 $q = request('q');
-                $gender = request('gender');
-                $status = request('status');
+                $country = request('country');
                 $designation = request('designation');
                 $sort = request('sort', 'created_at');
                 $dir = request('dir', 'desc');
                 $nextDir = $dir === 'asc' ? 'desc' : 'asc';
-                $designations = $designations ?? [];
+
+                $countries = $countries ?? collect();
+                $designations = $designations ?? collect();
             @endphp
 
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium mb-1">Search</label>
                     <input name="q" value="{{ $q }}"
-                        placeholder="Search name / phone / email / designation"
+                        placeholder="Search name / email / phone / company / designation"
                         class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
                         x-on:keydown.window.prevent.slash="$el.focus()" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium mb-1">Gender</label>
-                    <select name="gender"
+                    <label class="block text-sm font-medium mb-1">Country</label>
+                    <select name="country"
                         class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
                         <option value="">All</option>
-                        @foreach (['Male', 'Female', 'Other'] as $g)
-                            <option value="{{ $g }}" @selected($gender === $g)>{{ $g }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium mb-1">Status</label>
-                    <select name="status"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
-                        <option value="">All</option>
-                        @foreach (['Active', 'Inactive', 'Resigned'] as $s)
-                            <option value="{{ $s }}" @selected($status === $s)>{{ $s }}</option>
+                        @foreach ($countries as $c)
+                            <option value="{{ $c }}" @selected($country === $c)>{{ $c }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -70,30 +54,30 @@
                     </select>
                 </div>
 
-                <div class="md:col-span-5 flex gap-3">
+                <div class="md:col-span-4 flex gap-3">
                     <button
                         class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                         Filter
                     </button>
-                    <a href="{{ route('admin.employees.index') }}"
+                    <a href="{{ route('admin.customers.index') }}"
                         class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                         Reset
                     </a>
                 </div>
             </form>
 
-            {{-- Table --}}
             <div class="overflow-x-auto rounded-2xl shadow-lg bg-white/90 dark:bg-gray-800">
                 <table class="min-w-full">
                     <thead class="text-left text-sm text-gray-600 dark:text-gray-300">
                         @php
                             $columns = [
                                 'name' => 'Name',
-                                'phone' => 'Phone',
                                 'email' => 'Email',
+                                'phone' => 'Phone',
+                                'company_name' => 'Company',
+                                'country' => 'Country',
                                 'designation' => 'Designation',
-                                'status' => 'Status',
-                                'join_date' => 'Join Date',
+                                'created_at' => 'Created',
                             ];
                         @endphp
                         <tr>
@@ -112,44 +96,30 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @forelse ($employees as $emp)
+                        @forelse($customers as $c)
                             <tr class="text-sm">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
-                                        @if ($emp->photo_url)
-                                            <img src="{{ $emp->photo_url }}" class="h-10 w-10 rounded-xl object-cover"
+                                        @if ($c->photo_url)
+                                            <img src="{{ $c->photo_url }}" class="h-10 w-10 rounded-xl object-cover"
                                                 alt="">
                                         @else
                                             <div
                                                 class="h-10 w-10 rounded-xl bg-gray-200 dark:bg-gray-700 grid place-items-center">
-                                                👤
-                                            </div>
+                                                👤</div>
                                         @endif
                                         <a class="font-semibold hover:underline"
-                                            href="{{ route('admin.employees.show', $emp) }}">{{ $emp->name }}</a>
+                                            href="{{ route('admin.customers.show', $c) }}">{{ $c->name }}</a>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3">{{ $emp->phone }}</td>
-                                <td class="px-4 py-3">{{ $emp->email ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $emp->designation ?? '—' }}</td>
-                                <td class="px-4 py-3">
-                                    @php
-                                        $badge = match ($emp->status) {
-                                            'Active'
-                                                => 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-                                            'Inactive'
-                                                => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-                                            'Resigned'
-                                                => 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-                                            default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-                                        };
-                                    @endphp
-                                    <span
-                                        class="px-2 py-1 rounded-xl text-xs {{ $badge }}">{{ $emp->status }}</span>
-                                </td>
-                                <td class="px-4 py-3">{{ optional($emp->join_date)->format('Y-m-d') }}</td>
+                                <td class="px-4 py-3">{{ $c->email ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $c->phone ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $c->company_name ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $c->country ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $c->designation ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $c->created_at?->format('Y-m-d') }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('admin.employees.edit', $emp) }}"
+                                    <a href="{{ route('admin.customers.edit', $c) }}"
                                         class="px-3 py-1.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                                         Edit
                                     </a>
@@ -157,19 +127,19 @@
                                         class="px-3 py-1.5 rounded-xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90"
                                         x-data
                                         @click="
-                                            $dispatch('open-delete', {
-                                                url: '{{ route('admin.employees.destroy', $emp) }}',
-                                                title: 'Delete Employee',
-                                                message: 'Are you sure you want to delete this employee?'
-                                            })
-                                        ">
+                                        $dispatch('open-delete', {
+                                            url: '{{ route('admin.customers.destroy', $c) }}',
+                                            title: 'Delete Customer',
+                                            message: 'Are you sure you want to delete this customer?'
+                                        })
+                                    ">
                                         Delete
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-gray-500">No employees found.</td>
+                                <td colspan="9" class="px-4 py-6 text-center text-gray-500">No customers found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -177,11 +147,11 @@
             </div>
 
             <div class="pt-2">
-                {{ $employees->links() }}
+                {{ $customers->links() }}
             </div>
         </div>
 
-        {{-- Global delete modal (no soft delete option) --}}
+        {{-- Inline delete modal (no soft-delete option) --}}
         <div x-data="{ open: false, url: '', title: 'Delete Confirmation', message: 'Are you sure you want to delete this item?' }"
             x-on:open-delete.window="open = true; url = $event.detail.url; title = $event.detail.title ?? title; message = $event.detail.message ?? message;"
             x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
@@ -201,7 +171,9 @@
                         @method('DELETE')
                         <button
                             class="px-4 py-2 rounded-xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90"
-                            type="submit">Delete</button>
+                            type="submit">
+                            Delete
+                        </button>
                     </form>
                 </div>
             </div>

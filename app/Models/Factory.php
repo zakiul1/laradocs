@@ -2,36 +2,37 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\Categorizable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 
 class Factory extends Model
 {
-    use HasFactory, Categorizable;
-
-    /**
-     * Mass-assignable fields
-     */
     protected $fillable = [
         'name',
         'address',
         'phone',
+        'email',
+        'website',
+        'registration_no',
+        'total_employees',
         'lines',
         'notes',
+        'category_id',
+        'subcategory_id',
         'created_by',
         'updated_by',
     ];
 
-    protected $casts = [
-        'lines' => 'integer',
-    ];
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(FactoryCategory::class, 'category_id');
+    }
 
-    /**
-     * Relationships
-     */
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(FactorySubcategory::class, 'subcategory_id');
+    }
+
     public function photos(): HasMany
     {
         return $this->hasMany(FactoryPhoto::class);
@@ -40,24 +41,5 @@ class Factory extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(FactoryDocument::class);
-    }
-
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function updater(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    /**
-     * Helpers
-     */
-    public function primaryPhotoUrl(): ?string
-    {
-        $p = $this->photos()->latest('id')->first();
-        return $p?->url();
     }
 }

@@ -4,30 +4,47 @@
 
     $onUsers = \Illuminate\Support\Str::startsWith($currentRoute, 'admin.users.');
     $onFactories = request()->routeIs('admin.factories.*');
-    $onFactoryCats = request()->routeIs('admin.categories.index') && request('scope') === 'factory';
+    $onFactoryCat = request()->routeIs('admin.factory-categories.*'); // module-scoped categories
+
+    // Employees (super_admin only)
+    $onEmployees = request()->routeIs('admin.employees.*');
+
+    // Customers (super_admin only)
+    $onCustomers = request()->routeIs('admin.customers.*');
+
+    // Shippers (super_admin only)
+    $onShippers = request()->routeIs('admin.shippers.*');
+
+    // Banks (super_admin only)
+    $onBanks = request()->routeIs('admin.banks.*');
 @endphp
 
-<!-- Optional: prevent FOUC for any [x-cloak] elements -->
 <style>
     [x-cloak] {
-        display: none !important;
+        display: none !important
     }
 </style>
 
-<!-- Wrap NAV + OVERLAY in the same Alpine scope -->
 <div x-data="{
     sidebarOpen: @js(true),
+    // 'Workspace' has no accordions yet, but we keep the layout store compatible
+    // 'Management' accordions:
+    openFactories: @js($onFactories || $onFactoryCat),
+    openEmployees: @js($onEmployees),
+    openCustomers: @js($onCustomers),
+    openShippers: @js($onShippers),
+    openBanks: @js($onBanks),
     openUsers: @js($onUsers),
-    openFactories: @js($onFactories || $onFactoryCats),
 }" x-init="sidebarOpen = window.innerWidth > 1024" @resize.window="sidebarOpen = window.innerWidth > 1024">
 
     <nav :class="sidebarOpen ? 'w-64' : 'w-20'"
         class="fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-200"
         aria-label="Sidebar">
-        <!-- Logo / Header -->
+
+        <!-- Header -->
         <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-800">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-black dark:bg-white flex items-center justify-center">
+                <div class="w-8 h-8 rounded-lg bg-black dark:bg-white grid place-items-center">
                     <span class="text-white dark:text-black font-bold text-sm">A</span>
                 </div>
                 <span x-show="sidebarOpen" x-cloak class="font-semibold text-gray-900 dark:text-white">Admin</span>
@@ -40,9 +57,16 @@
             </button>
         </div>
 
-        <!-- Nav Items -->
+        <!-- BODY -->
         <div class="flex-1 overflow-y-auto py-4">
             <ul class="space-y-1 px-3">
+
+                {{-- =======================
+                     GROUP 1: WORKSPACE (TOP)
+                   ======================= --}}
+                <li x-show="sidebarOpen" x-cloak class="px-3 pt-1 pb-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400">Workspace</p>
+                </li>
 
                 <!-- Dashboard -->
                 <li>
@@ -60,24 +84,38 @@
                     </x-nav-link>
                 </li>
 
-                {{-- FACTORIES (collapsible) --}}
-                <li class="mt-4">
+                {{-- Example placeholder for “Upcoming Modules” in Workspace --}}
+                {{-- <li>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none"><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        <span x-show="sidebarOpen" x-cloak>Upcoming Module</span>
+                    </a>
+                </li> --}}
+
+                {{-- ===========================
+                     GROUP 2: MANAGEMENT (BOTTOM)
+                   =========================== --}}
+                <li x-show="sidebarOpen" x-cloak class="px-3 pt-5 pb-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400">Management</p>
+                </li>
+
+                {{-- Factory (collapsible) --}}
+                <li>
                     <button @click="openFactories = !openFactories"
                         class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                                hover:bg-gray-100 dark:hover:bg-gray-800
-                               {{ $onFactories || $onFactoryCats ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                               {{ $onFactories || $onFactoryCat ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
                         <div class="flex items-center gap-3">
-                            {{-- lucide building icon (fallback inline) --}}
                             <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" aria-hidden="true">
+                                stroke="currentColor">
                                 <path d="M3 21h18M6 21V3h12v18M9 8h6M9 12h6M9 16h6" stroke-width="2"
                                     stroke-linecap="round" />
                             </svg>
-                            <span x-show="sidebarOpen" x-cloak class="text-gray-700 dark:text-gray-300">Factories</span>
+                            <span x-show="sidebarOpen" x-cloak class="text-gray-700 dark:text-gray-300">Factory</span>
                         </div>
                         <svg x-show="sidebarOpen" x-cloak :class="openFactories ? 'rotate-180' : ''"
                             class="w-4 h-4 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" aria-hidden="true">
+                            stroke="currentColor">
                             <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                     </button>
@@ -87,59 +125,185 @@
                         <a href="{{ route('admin.factories.index') }}"
                             class="block pl-4 py-2 text-sm
                                   {{ request()->routeIs('admin.factories.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
-                                  hover:text-gray-900 dark:hover:text-white">
-                            All Factories
-                        </a>
+                                  hover:text-gray-900 dark:hover:text-white">All
+                            Factories</a>
 
-                        @if ($isSuper)
-                            <a href="{{ route('admin.categories.index', ['scope' => 'factory']) }}"
-                                class="block pl-4 py-2 text-sm
-                                      {{ request()->routeIs('admin.categories.index') && request('scope') === 'factory' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
-                                      hover:text-gray-900 dark:hover:text-white">
-                                Categories
-                            </a>
-                        @endif
+                        <a href="{{ route('admin.factory-categories.index') }}"
+                            class="block pl-4 py-2 text-sm
+                                  {{ request()->routeIs('admin.factory-categories.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                  hover:text-gray-900 dark:hover:text-white">Factory
+                            Categories</a>
                     </div>
                 </li>
 
-                <!-- Categories (direct link, super_admin only) -->
+                {{-- Employees --}}
                 @if ($isSuper)
-                    <li class="mt-4">
-                        <a href="{{ route('admin.categories.index', ['scope' => 'factory']) }}"
-                            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                                  hover:bg-gray-100 dark:hover:bg-gray-800 {{ request()->fullUrlIs('*admin/categories*') ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
+                    <li>
+                        <button @click="openEmployees = !openEmployees"
+                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                                   hover:bg-gray-100 dark:hover:bg-gray-800
+                                   {{ $onEmployees ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor">
+                                    <path d="M16 11a4 4 0 10-8 0 4 4 0 008 0Z" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <path d="M6 21v-1a6 6 0 0112 0v1" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                <span x-show="sidebarOpen" x-cloak
+                                    class="text-gray-700 dark:text-gray-300">Employees</span>
+                            </div>
+                            <svg x-show="sidebarOpen" x-cloak :class="openEmployees ? 'rotate-180' : ''"
+                                class="w-4 h-4 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor">
+                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
                             </svg>
-                            <span x-show="sidebarOpen" x-cloak
-                                class="text-gray-700 dark:text-gray-300">Categories</span>
-                        </a>
+                        </button>
+
+                        <div x-cloak x-show="openEmployees" x-transition
+                            class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                            <a href="{{ route('admin.employees.index') }}"
+                                class="block pl-4 py-2 text-sm
+                                      {{ request()->routeIs('admin.employees.index') || request()->routeIs('admin.employees.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                      hover:text-gray-900 dark:hover:text-white">All
+                                Employees</a>
+
+                            <a href="{{ route('admin.employees.create') }}"
+                                class="block pl-4 py-2 text-sm
+                                      {{ request()->routeIs('admin.employees.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                      hover:text-gray-900 dark:hover:text-white">Add
+                                Employee</a>
+                        </div>
                     </li>
                 @endif
 
-                {{-- Employees (super_admin only) --}}
+                {{-- Customers --}}
                 @if ($isSuper)
-                    <div class="mt-6">
-                        <p class="px-3 text-[10px] uppercase tracking-widest text-gray-400" x-show="sidebarOpen"
-                            x-cloak>people</p>
-
-                        <x-nav-link :href="route('admin.employees.index')" :active="request()->routeIs('admin.employees.*')"
-                            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    <li>
+                        <button @click="openCustomers = !openCustomers"
+                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                                    hover:bg-gray-100 dark:hover:bg-gray-800
-                                   {{ request()->routeIs('admin.employees.*') ? 'bg-gray-100 dark:bg-gray-800 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300' }}">
-                            <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
-                                    stroke="currentColor" stroke-width="2" />
-                                <path d="M7 10h5M7 14h8" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
+                                   {{ $onCustomers ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor">
+                                    <path d="M20 21v-1a6 6 0 00-9-5.197M9 10a4 4 0 100-8 4 4 0 000 8z" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span x-show="sidebarOpen" x-cloak
+                                    class="text-gray-700 dark:text-gray-300">Customers</span>
+                            </div>
+                            <svg x-show="sidebarOpen" x-cloak :class="openCustomers ? 'rotate-180' : ''"
+                                class="w-4 h-4 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor">
+                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
                             </svg>
-                            <span x-show="sidebarOpen" x-cloak>Employees</span>
-                        </x-nav-link>
-                    </div>
+                        </button>
+
+                        <div x-cloak x-show="openCustomers" x-transition
+                            class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                            <a href="{{ route('admin.customers.index') }}"
+                                class="block pl-4 py-2 text-sm
+                                      {{ request()->routeIs('admin.customers.index') || request()->routeIs('admin.customers.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                      hover:text-gray-900 dark:hover:text-white">All
+                                Customers</a>
+
+                            <a href="{{ route('admin.customers.create') }}"
+                                class="block pl-4 py-2 text-sm
+                                      {{ request()->routeIs('admin.customers.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                      hover:text-gray-900 dark:hover:text-white">Add
+                                Customer</a>
+                        </div>
+                    </li>
                 @endif
 
-                <!-- Users (Collapsible) -->
+                {{-- Shippers --}}
+                @if ($isSuper)
+                    <li>
+                        <button @click="openShippers = !openShippers"
+                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                                   hover:bg-gray-100 dark:hover:bg-gray-800
+                                   {{ $onShippers ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor">
+                                    <path d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span x-show="sidebarOpen" x-cloak
+                                    class="text-gray-700 dark:text-gray-300">Shippers</span>
+                            </div>
+                            <svg x-show="sidebarOpen" x-cloak :class="openShippers ? 'rotate-180' : ''"
+                                class="w-4 h-4 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor">
+                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </button>
+
+                        <div x-cloak x-show="openShippers" x-transition
+                            class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                            <a href="{{ route('admin.shippers.index') }}"
+                                class="block pl-4 py-2 text-sm
+                                   {{ request()->routeIs('admin.shippers.index') || request()->routeIs('admin.shippers.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                   hover:text-gray-900 dark:hover:text-white">All
+                                Shippers</a>
+
+                            <a href="{{ route('admin.shippers.create') }}"
+                                class="block pl-4 py-2 text-sm
+                                   {{ request()->routeIs('admin.shippers.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                   hover:text-gray-900 dark:hover:text-white">Add
+                                Shipper</a>
+                        </div>
+                    </li>
+                @endif
+
+                {{-- Banks --}}
+                @if ($isSuper)
+                    <li>
+                        <button @click="openBanks = !openBanks"
+                            class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                                   hover:bg-gray-100 dark:hover:bg-gray-800
+                                   {{ $onBanks ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor">
+                                    <path d="M3 10l9-7 9 7v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8z" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M9 22V12h6v10" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                <span x-show="sidebarOpen" x-cloak
+                                    class="text-gray-700 dark:text-gray-300">Banks</span>
+                            </div>
+                            <svg x-show="sidebarOpen" x-cloak :class="openBanks ? 'rotate-180' : ''"
+                                class="w-4 h-4 text-gray-500 transition-transform" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor">
+                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </button>
+
+                        <div x-cloak x-show="openBanks" x-transition
+                            class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                            <a href="{{ route('admin.banks.index') }}"
+                                class="block pl-4 py-2 text-sm
+                                   {{ request()->routeIs('admin.banks.index') || request()->routeIs('admin.banks.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                   hover:text-gray-900 dark:hover:text-white">All
+                                Banks</a>
+                            <a href="{{ route('admin.banks.create') }}"
+                                class="block pl-4 py-2 text-sm
+                                   {{ request()->routeIs('admin.banks.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                                   hover:text-gray-900 dark:hover:text-white">Add
+                                Bank</a>
+                        </div>
+                    </li>
+                @endif
+
+                {{-- Users --}}
                 <li>
                     <button @click="openUsers = !openUsers"
                         class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
@@ -149,7 +313,7 @@
                             <svg class="w-5 h-5 flex-shrink-0 text-gray-600 dark:text-gray-400" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path
-                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                             <span x-show="sidebarOpen" x-cloak class="text-gray-700 dark:text-gray-300">Users</span>
@@ -162,61 +326,39 @@
                         </svg>
                     </button>
 
-                    <!-- Submenu -->
                     <div x-cloak x-show="openUsers" x-transition
                         class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
                         <a href="{{ route('admin.users.index') }}"
                             class="block pl-4 py-2 text-sm {{ request()->routeIs('admin.users.index') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }} hover:text-gray-900 dark:hover:text-white">
-                            All Users
-                        </a>
+                            All Users</a>
 
                         @if ($isSuper)
                             <a href="{{ route('admin.users.create') }}"
                                 class="block pl-4 py-2 text-sm {{ request()->routeIs('admin.users.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }} hover:text-gray-900 dark:hover:text-white">
-                                Register Admin
-                            </a>
+                                Register Admin</a>
                         @endif
                     </div>
-                </li>
-
-                <!-- Settings -->
-                <li>
-                    <x-nav-link href="#" :active="false"
-                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                               hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                            aria-hidden="true">
-                            <path
-                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg>
-                        <span x-show="sidebarOpen" x-cloak>Settings</span>
-                    </x-nav-link>
                 </li>
             </ul>
         </div>
 
-        <!-- User -->
+        <!-- Footer / User -->
         <div class="px-3 py-4 border-t border-gray-200 dark:border-gray-800">
             <div class="flex items-center gap-3">
                 <div
-                    class="w-9 h-9 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                    class="w-9 h-9 rounded-full bg-gray-300 dark:bg-gray-700 grid place-items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                     {{ Str::upper(substr(auth()->user()->name, 0, 2)) }}
                 </div>
                 <div x-show="sidebarOpen" x-cloak class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ auth()->user()->name }}
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ $isSuper ? 'Super Admin' : 'Admin' }}
-                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $isSuper ? 'Super Admin' : 'Admin' }}</p>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Overlay for mobile (same Alpine scope) -->
+    <!-- Mobile overlay -->
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" x-transition
         class="fixed inset-0 bg-black/50 z-40 lg:hidden" aria-hidden="true"></div>
 </div>

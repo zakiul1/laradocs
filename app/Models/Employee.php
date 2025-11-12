@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Employee extends Model
 {
@@ -15,24 +16,46 @@ class Employee extends Model
         'phone',
         'email',
         'designation',
-        'address',
         'join_date',
         'leave_date',
-        'photo_path',
+        'photo',
+        'documents',
+        'address',
+        'alternative_contact_number',
+        'created_by',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+        'emergency_contact_relation',
+        'gender',
+        'blood_group',
+        'status',
+        'notes',
     ];
 
     protected $casts = [
         'join_date' => 'date',
         'leave_date' => 'date',
+        'documents' => 'array',
     ];
 
-    public function documents()
+    // Relations
+    public function creator()
     {
-        return $this->hasMany(EmployeeDocument::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function photoUrl(): ?string
+    // Helper: computed URLs for photo & docs (public disk)
+    protected function photoUrl(): Attribute
     {
-        return $this->photo_path ? asset('storage/' . $this->photo_path) : null;
+        return Attribute::make(
+            get: fn() => $this->photo ? asset('storage/' . $this->photo) : null
+        );
+    }
+
+    public function documentUrls(): array
+    {
+        return collect($this->documents ?? [])
+            ->map(fn($path) => asset('storage/' . $path))
+            ->all();
     }
 }

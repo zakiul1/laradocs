@@ -6,9 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Siatex Docs — Admin')</title>
 
+    {{-- CSRF for JS/XHR helpers --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- Vite: loads Tailwind + Alpine (from resources/js/app.js) --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-
+    {{-- Layout store (keep here unless you moved it into app.js) --}}
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.store('layout', {
@@ -107,6 +111,16 @@
             </div>
         </main>
     </div>
+
+    {{-- GLOBAL TOAST (powered by Alpine store from resources/js/app.js) --}}
+    <div x-data x-show="$store.toast && $store.toast.show" x-transition
+        class="fixed top-4 right-4 z-50 rounded-xl px-4 py-3 shadow-lg"
+        :class="{
+            'bg-green-600 text-white': $store.toast?.type === 'success',
+            'bg-red-600 text-white': $store.toast?.type === 'error',
+            'bg-blue-600 text-white': $store.toast?.type === 'info'
+        }"
+        x-text="$store.toast?.message" x-cloak></div>
 
     @stack('scripts')
 </body>
