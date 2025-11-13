@@ -2,31 +2,32 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SampleInvoiceItem extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'sample_invoice_id','art_num','article_description','size','hs_code',
-        'qty','unit_price','sub_total','sort'
+        'sample_invoice_id',
+        'art_num',
+        'description',
+        'size',
+        'hs_code',
+        'qty',
+        'unit_price',
+        'sub_total',
     ];
 
-    protected static function booted(): void
+    protected $casts = [
+        'qty' => 'integer',
+        'unit_price' => 'decimal:2',
+        'sub_total' => 'decimal:2',
+    ];
+
+    public function invoice()
     {
-        static::saving(function (SampleInvoiceItem $item) {
-            $item->sub_total = round(((float)$item->qty) * ((float)$item->unit_price), 2);
-        });
-
-        static::saved(function (SampleInvoiceItem $item) {
-            optional($item->invoice)->recalcTotals();
-            optional($item->invoice)->save();
-        });
-
-        static::deleted(function (SampleInvoiceItem $item) {
-            optional($item->invoice)->recalcTotals();
-            optional($item->invoice)->save();
-        });
+        return $this->belongsTo(SampleInvoice::class, 'sample_invoice_id');
     }
-
-    public function invoice() { return $this->belongsTo(SampleInvoice::class,'sample_invoice_id'); }
 }

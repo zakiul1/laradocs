@@ -22,17 +22,15 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ShipperController;
 use App\Http\Controllers\BankController;
 
-// NEW: Invoice module controllers
+// NEW: Sample Invoice module controller
 use App\Http\Controllers\SampleInvoiceController;
-use App\Http\Controllers\SalesInvoiceController;
-use App\Http\Controllers\SalesReportController;
 
 /*
 |--------------------------------------------------------------------------
 | Public redirect
 |--------------------------------------------------------------------------
 */
-Route::get('/', fn () => auth()->check()
+Route::get('/', fn() => auth()->check()
     ? redirect()->route('dashboard')
     : redirect()->route('login'));
 
@@ -156,7 +154,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('role:super_admin')->group(function () {
             // legacy: root controller alias
             Route::resource('employees', RootEmployeeController::class);
-            // or the namespaced admin controller if you prefer:
+            // Or the namespaced admin controller if you prefer:
             // Route::resource('employees', AdminEmployeeController::class);
         });
 
@@ -167,7 +165,28 @@ Route::middleware(['auth'])->group(function () {
         */
         Route::middleware('role:super_admin')->group(function () {
             Route::resource('customers', CustomerController::class);
-            Route::resource('shippers', ShipperController::class)->names('shippers');
+
+
+            // Companies
+            Route::resource('companies', \App\Http\Controllers\CompanyController::class)
+                ->names('companies');
+
+            // Real-time category create + optional search
+            Route::post(
+                'companies/categories/quick-create',
+                [\App\Http\Controllers\CompanyController::class, 'quickCreateCategory']
+            )->name('companies.categories.quick-create');
+
+            Route::get(
+                'companies/categories/json',
+                [\App\Http\Controllers\CompanyController::class, 'categoriesJson']
+            )->name('companies.categories.json');
+
+            // AJAX company search for Bank form
+            Route::get('banks/company-options', [BankController::class, 'companyOptions'])
+                ->name('banks.company-options');
+
+            // Bank CRUD
             Route::resource('banks', BankController::class)->names('banks');
         });
 
@@ -175,73 +194,21 @@ Route::middleware(['auth'])->group(function () {
         |------------------------------------------------------------------
         | INVOICE MODULE
         |------------------------------------------------------------------
-        | We allow both admin and super_admin to work with invoices.
-        | Adjust to only super_admin if you want tighter control.
+        | Only SAMPLE INVOICES now (admin + super_admin)
         |------------------------------------------------------------------
         */
         Route::middleware('role:admin,super_admin')->group(function () {
-            /*
-             * SAMPLE INVOICES
-             * Route names: admin.sample-invoices.*
-             */
-            Route::get('sample-invoices', [SampleInvoiceController::class, 'index'])->name('sample-invoices.index');
-            Route::get('sample-invoices/create', [SampleInvoiceController::class, 'create'])->name('sample-invoices.create');
-            Route::post('sample-invoices', [SampleInvoiceController::class, 'store'])->name('sample-invoices.store');
-            Route::get('sample-invoices/{invoice}/edit', [SampleInvoiceController::class, 'edit'])->name('sample-invoices.edit');
-            Route::put('sample-invoices/{invoice}', [SampleInvoiceController::class, 'update'])->name('sample-invoices.update');
-            Route::delete('sample-invoices/{invoice}', [SampleInvoiceController::class, 'destroy'])->name('sample-invoices.destroy');
 
-            // Preview (HTML)
-            Route::get('sample-invoices/{invoice}/preview', [SampleInvoiceController::class, 'show'])
-                ->name('sample-invoices.show');
+            // Sample Invoices (index, create, store, show, edit, update)
+            Route::resource('sample-invoices', SampleInvoiceController::class)
+                ->names('sample-invoices')
+                ->parameters(['sample-invoices' => 'sampleInvoice'])
+                ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
 
             // PDF export
-            Route::get('sample-invoices/{invoice}/pdf', [SampleInvoiceController::class, 'pdf'])
+            Route::get('sample-invoices/{sampleInvoice}/pdf', [SampleInvoiceController::class, 'pdf'])
                 ->name('sample-invoices.pdf');
-
-            // Select2-style lookups / small JSON helpers
-            Route::get('sample-invoices/lookups/shippers', [SampleInvoiceController::class, 'lookupShippers'])
-                ->name('sample-invoices.lookups.shippers');
-            Route::get('sample-invoices/lookups/customers', [SampleInvoiceController::class, 'lookupCustomers'])
-                ->name('sample-invoices.lookups.customers');
-            Route::get('sample-invoices/lookups/currencies', [SampleInvoiceController::class, 'lookupCurrencies'])
-                ->name('sample-invoices.lookups.currencies');
-
-            /*
-             * SALES INVOICES (LC/TT)
-             * Route names: admin.sales-invoices.*
-             */
-            Route::get('sales-invoices', [SalesInvoiceController::class, 'index'])->name('sales-invoices.index');
-            Route::get('sales-invoices/create', [SalesInvoiceController::class, 'create'])->name('sales-invoices.create');
-            Route::post('sales-invoices', [SalesInvoiceController::class, 'store'])->name('sales-invoices.store');
-            Route::get('sales-invoices/{invoice}/edit', [SalesInvoiceController::class, 'edit'])->name('sales-invoices.edit');
-            Route::put('sales-invoices/{invoice}', [SalesInvoiceController::class, 'update'])->name('sales-invoices.update');
-            Route::delete('sales-invoices/{invoice}', [SalesInvoiceController::class, 'destroy'])->name('sales-invoices.destroy');
-
-            // Preview (HTML)
-            Route::get('sales-invoices/{invoice}/preview', [SalesInvoiceController::class, 'show'])
-                ->name('sales-invoices.show');
-
-            // PDF export
-            Route::get('sales-invoices/{invoice}/pdf', [SalesInvoiceController::class, 'pdf'])
-                ->name('sales-invoices.pdf');
-
-            // Lookups shared with sales screens
-            Route::get('sales-invoices/lookups/shippers', [SalesInvoiceController::class, 'lookupShippers'])
-                ->name('sales-invoices.lookups.shippers');
-            Route::get('sales-invoices/lookups/customers', [SalesInvoiceController::class, 'lookupCustomers'])
-                ->name('sales-invoices.lookups.customers');
-            Route::get('sales-invoices/lookups/currencies', [SalesInvoiceController::class, 'lookupCurrencies'])
-                ->name('sales-invoices.lookups.currencies');
-
-            /*
-             * REPORTS
-             */
-            Route::get('reports/sales', [SalesReportController::class, 'index'])
-                ->name('reports.sales');
-            // Optional JSON endpoint for chart data (group by fiscal year etc.)
-            Route::get('reports/sales/data', [SalesReportController::class, 'data'])
-                ->name('reports.sales.data');
         });
+
     });
 });

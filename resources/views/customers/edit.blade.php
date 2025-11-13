@@ -27,6 +27,18 @@
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    {{-- Person Name --}}
+                    {{--     <div>
+                        <label class="block text-sm font-medium mb-1">Person Name</label>
+                        <input name="person_name" type="text"
+                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
+                            value="{{ old('person_name', $customer->person_name) }}">
+                        @error('person_name')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div> --}}
+
                     <div>
                         <label class="block text-sm font-medium mb-1">Email</label>
                         <input name="email" type="email"
@@ -57,15 +69,25 @@
                 </div>
 
                 <div class="space-y-4">
+                    {{-- Country simple select --}}
                     <div>
                         <label class="block text-sm font-medium mb-1">Country</label>
-                        <input name="country" type="text"
-                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
-                            value="{{ old('country', $customer->country) }}">
+
+                        <select name="country"
+                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
+                            <option value="">-- Select Country --</option>
+                            @foreach ($countries ?? [] as $country)
+                                <option value="{{ $country }}" @selected(old('country', $customer->country) == $country)>
+                                    {{ $country }}
+                                </option>
+                            @endforeach
+                        </select>
+
                         @error('country')
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium mb-1">Company Name</label>
                         <input name="company_name" type="text"

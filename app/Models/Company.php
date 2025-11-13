@@ -5,16 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Shipper extends Model
+class Company extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'name',
-        'address',
+        'company_name',
         'email',
         'phone',
+        'address',
+        'contact_person',
         'website',
+        'note',
+        'company_category_id',
         'created_by',
     ];
 
@@ -23,8 +27,13 @@ class Shipper extends Model
         'updated_at' => 'datetime',
     ];
 
+    public function category()
+    {
+        return $this->belongsTo(CompanyCategory::class, 'company_category_id');
+    }
+
     public function creator()
     {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

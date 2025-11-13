@@ -1,86 +1,111 @@
 @extends('layouts.app')
-@section('title','Sample Invoice')
 
 @section('content')
-<div class="space-y-6">
-    <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold">Sample Invoice</h1>
-        <a href="{{ route('admin.sample-invoices.create') }}"
-           class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
-            Add Invoice
-        </a>
-    </div>
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <header class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold">Sample Invoice</h1>
+            <a href="{{ route('admin.sample-invoices.create') }}"
+                class="px-4 py-2 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
+                + Add Invoice
+            </a>
+        </header>
 
-    <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white dark:bg-gray-900 border rounded-xl p-4">
+        <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-sm font-medium mb-1">Select Shipper</label>
+                <select name="shipper_id"
+                    class="rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 min-w-[260px]">
+                    <option value="">All Shippers</option>
+                    @foreach ($shippers as $s)
+                        <option value="{{ $s->id }}" @selected(request('shipper_id') == $s->id)>
+                            {{ $s->company_name ?? $s->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Customer</label>
+                <select name="customer_id"
+                    class="rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 min-w-[260px]">
+                    <option value="">All Customers</option>
+                    @foreach ($customers as $c)
+                        <option value="{{ $c->id }}" @selected(request('customer_id') == $c->id)>
+                            {{ $c->company_name }} ({{ $c->name }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Search</label>
+                <input type="text" name="q" value="{{ request('q') }}"
+                    class="rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
+                    placeholder="Invoice no / shipper / customer">
+            </div>
+
+            <button
+                class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
+                Filter
+            </button>
+        </form>
+
+        <div class="rounded-2xl shadow-lg bg-white/90 dark:bg-gray-800 overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-900/60 text-gray-700 dark:text-gray-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Sample Invoice No</th>
+                        <th class="px-4 py-3 text-left">Shipper</th>
+                        <th class="px-4 py-3 text-left">Customer</th>
+                        <th class="px-4 py-3 text-right">Total Price</th>
+                        <th class="px-4 py-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    @forelse($invoices as $inv)
+                        <tr>
+                            <td class="px-4 py-2">
+                                <a href="{{ route('admin.sample-invoices.show', $inv) }}"
+                                    class="text-indigo-600 hover:underline">{{ $inv->invoice_no }}</a>
+                            </td>
+                            <td class="px-4 py-2">{{ $inv->shipper_name }}</td>
+                            <td class="px-4 py-2">{{ $inv->customer_company_name }}</td>
+                            <td class="px-4 py-2 text-right">
+                                ${{ number_format($inv->total_amount, 2) }}
+                            </td>
+                            <td class="px-4 py-2 text-right space-x-2">
+                                {{-- View --}}
+                                <a href="{{ route('admin.sample-invoices.show', $inv) }}"
+                                    class="inline-flex items-center text-xs px-2 py-1 rounded-xl bg-gray-200 dark:bg-gray-700">
+                                    View
+                                </a>
+
+                                {{-- Edit (NEW) --}}
+                                <a href="{{ route('admin.sample-invoices.edit', $inv) }}"
+                                    class="inline-flex items-center text-xs px-2 py-1 rounded-xl bg-gray-200 dark:bg-gray-700">
+                                    Edit
+                                </a>
+
+                                {{-- PDF --}}
+                                <a href="{{ route('admin.sample-invoices.pdf', $inv) }}"
+                                    class="inline-flex items-center text-xs px-2 py-1 rounded-xl bg-gray-200 dark:bg-gray-700">
+                                    PDF
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-gray-500">
+                                No sample invoices found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
         <div>
-            <label class="block text-xs text-gray-500 mb-1">Shipper</label>
-            <select name="shipper_id" class="w-full rounded-lg border px-3 py-2">
-                <option value="">All</option>
-                @foreach($shippers as $s)
-                    <option value="{{ $s->id }}" @selected(request('shipper_id')==$s->id)>{{ $s->name }}</option>
-                @endforeach
-            </select>
+            {{ $invoices->links() }}
         </div>
-        <div>
-            <label class="block text-xs text-gray-500 mb-1">Customer</label>
-            <select name="customer_id" class="w-full rounded-lg border px-3 py-2">
-                <option value="">All</option>
-                @foreach($customers as $c)
-                    <option value="{{ $c->id }}" @selected(request('customer_id')==$c->id)>{{ $c->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="md:col-span-2">
-            <label class="block text-xs text-gray-500 mb-1">Find something?</label>
-            <input name="search" value="{{ request('search') }}" class="w-full rounded-lg border px-3 py-2">
-        </div>
-        <div class="md:col-span-4 flex justify-end">
-            <button class="rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700">Apply</button>
-        </div>
-    </form>
-
-    <div class="overflow-x-auto rounded-xl border bg-white dark:bg-gray-900">
-        <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 dark:bg-gray-800">
-            <tr class="text-left">
-                <th class="px-4 py-2">ID</th>
-                <th class="px-4 py-2">Sample Invoice No</th>
-                <th class="px-4 py-2">Shipper</th>
-                <th class="px-4 py-2">Customer</th>
-                <th class="px-4 py-2">Currency</th>
-                <th class="px-4 py-2 text-right">Total Price</th>
-                <th class="px-4 py-2">Action</th>
-            </tr>
-            </thead>
-            <tbody>
-            @forelse($invoices as $inv)
-                <tr class="border-t">
-                    <td class="px-4 py-2">{{ $inv->id }}</td>
-                    <td class="px-4 py-2">{{ $inv->invoice_no }}</td>
-                    <td class="px-4 py-2">{{ $inv->shipper->name ?? '-' }}</td>
-                    <td class="px-4 py-2">{{ $inv->customer->name ?? '-' }}</td>
-                    <td class="px-4 py-2">{{ $inv->currency->code ?? '' }}</td>
-                    <td class="px-4 py-2 text-right">{{ number_format($inv->grand_total,2) }}</td>
-                    <td class="px-4 py-2">
-                        <div class="flex items-center gap-2">
-                            <a class="text-blue-600 hover:underline" href="{{ route('admin.sample-invoices.show',$inv) }}">View</a>
-                            <a class="text-amber-600 hover:underline" href="{{ route('admin.sample-invoices.edit',$inv) }}">Edit</a>
-                            <a class="text-green-700 hover:underline" href="{{ route('admin.sample-invoices.pdf',$inv) }}">PDF</a>
-                            <form method="post" action="{{ route('admin.sample-invoices.destroy',$inv) }}" onsubmit="return confirm('Delete this invoice?')">
-                                @csrf @method('delete')
-                                <button class="text-red-600 hover:underline" type="submit">Del</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            @empty
-                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No invoices</td></tr>
-            @endforelse
-            </tbody>
-        </table>
     </div>
-
-    <div>{{ $invoices->links() }}</div>
-</div>
 @endsection

@@ -10,6 +10,207 @@ use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
+    /**
+     * Static list of countries for select inputs.
+     */
+    private function getCountries(): array
+    {
+        return [
+            'Afghanistan',
+            'Albania',
+            'Algeria',
+            'Andorra',
+            'Angola',
+            'Antigua and Barbuda',
+            'Argentina',
+            'Armenia',
+            'Australia',
+            'Austria',
+            'Azerbaijan',
+            'Bahamas',
+            'Bahrain',
+            'Bangladesh',
+            'Barbados',
+            'Belarus',
+            'Belgium',
+            'Belize',
+            'Benin',
+            'Bhutan',
+            'Bolivia',
+            'Bosnia and Herzegovina',
+            'Botswana',
+            'Brazil',
+            'Brunei',
+            'Bulgaria',
+            'Burkina Faso',
+            'Burundi',
+            'Cambodia',
+            'Cameroon',
+            'Canada',
+            'Cape Verde',
+            'Central African Republic',
+            'Chad',
+            'Chile',
+            'China',
+            'Colombia',
+            'Comoros',
+            'Congo',
+            'Costa Rica',
+            'Croatia',
+            'Cuba',
+            'Cyprus',
+            'Czech Republic',
+            'Denmark',
+            'Djibouti',
+            'Dominica',
+            'Dominican Republic',
+            'East Timor',
+            'Ecuador',
+            'Egypt',
+            'El Salvador',
+            'Equatorial Guinea',
+            'Eritrea',
+            'Estonia',
+            'Eswatini',
+            'Ethiopia',
+            'Fiji',
+            'Finland',
+            'France',
+            'Gabon',
+            'Gambia',
+            'Georgia',
+            'Germany',
+            'Ghana',
+            'Greece',
+            'Grenada',
+            'Guatemala',
+            'Guinea',
+            'Guinea-Bissau',
+            'Guyana',
+            'Haiti',
+            'Honduras',
+            'Hungary',
+            'Iceland',
+            'India',
+            'Indonesia',
+            'Iran',
+            'Iraq',
+            'Ireland',
+            'Israel',
+            'Italy',
+            'Jamaica',
+            'Japan',
+            'Jordan',
+            'Kazakhstan',
+            'Kenya',
+            'Kiribati',
+            'Kuwait',
+            'Kyrgyzstan',
+            'Laos',
+            'Latvia',
+            'Lebanon',
+            'Lesotho',
+            'Liberia',
+            'Libya',
+            'Liechtenstein',
+            'Lithuania',
+            'Luxembourg',
+            'Madagascar',
+            'Malawi',
+            'Malaysia',
+            'Maldives',
+            'Mali',
+            'Malta',
+            'Marshall Islands',
+            'Mauritania',
+            'Mauritius',
+            'Mexico',
+            'Micronesia',
+            'Moldova',
+            'Monaco',
+            'Mongolia',
+            'Montenegro',
+            'Morocco',
+            'Mozambique',
+            'Myanmar',
+            'Namibia',
+            'Nauru',
+            'Nepal',
+            'Netherlands',
+            'New Zealand',
+            'Nicaragua',
+            'Niger',
+            'Nigeria',
+            'North Korea',
+            'North Macedonia',
+            'Norway',
+            'Oman',
+            'Pakistan',
+            'Palau',
+            'Panama',
+            'Papua New Guinea',
+            'Paraguay',
+            'Peru',
+            'Philippines',
+            'Poland',
+            'Portugal',
+            'Qatar',
+            'Romania',
+            'Russia',
+            'Rwanda',
+            'Saint Kitts and Nevis',
+            'Saint Lucia',
+            'Saint Vincent and the Grenadines',
+            'Samoa',
+            'San Marino',
+            'Sao Tome and Principe',
+            'Saudi Arabia',
+            'Senegal',
+            'Serbia',
+            'Seychelles',
+            'Sierra Leone',
+            'Singapore',
+            'Slovakia',
+            'Slovenia',
+            'Solomon Islands',
+            'Somalia',
+            'South Africa',
+            'South Korea',
+            'South Sudan',
+            'Spain',
+            'Sri Lanka',
+            'Sudan',
+            'Suriname',
+            'Sweden',
+            'Switzerland',
+            'Syria',
+            'Tajikistan',
+            'Tanzania',
+            'Thailand',
+            'Togo',
+            'Tonga',
+            'Trinidad and Tobago',
+            'Tunisia',
+            'Turkey',
+            'Turkmenistan',
+            'Tuvalu',
+            'Uganda',
+            'Ukraine',
+            'United Arab Emirates',
+            'United Kingdom',
+            'United States',
+            'Uruguay',
+            'Uzbekistan',
+            'Vanuatu',
+            'Vatican City',
+            'Venezuela',
+            'Vietnam',
+            'Yemen',
+            'Zambia',
+            'Zimbabwe',
+        ];
+    }
+
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q'));
@@ -21,6 +222,7 @@ class CustomerController extends Controller
         $customers = Customer::query()
             ->when($q, fn($qr) => $qr->where(function ($s) use ($q) {
                 $s->where('name', 'like', "%{$q}%")
+                    ->orWhere('person_name', 'like', "%{$q}%") // include person_name in search
                     ->orWhere('email', 'like', "%{$q}%")
                     ->orWhere('phone', 'like', "%{$q}%")
                     ->orWhere('company_name', 'like', "%{$q}%")
@@ -32,7 +234,7 @@ class CustomerController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        // For filter dropdowns (optional – build from existing data)
+        // For filter dropdowns (built from existing data)
         $countries = Customer::query()->whereNotNull('country')->distinct()->pluck('country')->sort()->values();
         $designations = Customer::query()->whereNotNull('designation')->distinct()->pluck('designation')->sort()->values();
 
@@ -41,7 +243,9 @@ class CustomerController extends Controller
 
     public function create()
     {
-        return view('customers.create');
+        $countries = $this->getCountries();
+
+        return view('customers.create', compact('countries'));
     }
 
     public function store(Request $request)
@@ -90,7 +294,9 @@ class CustomerController extends Controller
 
     public function edit(Customer $customer)
     {
-        return view('customers.edit', compact('customer'));
+        $countries = $this->getCountries();
+
+        return view('customers.edit', compact('customer', 'countries'));
     }
 
     public function update(Request $request, Customer $customer)
@@ -169,6 +375,7 @@ class CustomerController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'person_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string'],
             'phone' => ['nullable', 'string', 'max:30'],

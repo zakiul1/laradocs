@@ -58,6 +58,15 @@
 
                 <div class="md:col-span-2">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Person Name --}}
+                        {{--       <div>
+                            <label class="block text-sm font-medium mb-1">Person Name</label>
+                            <p
+                                class="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/40">
+                                {{ $customer->person_name ?? '—' }}
+                            </p>
+                        </div> --}}
+
                         <div>
                             <label class="block text-sm font-medium mb-1">Email</label>
                             <p

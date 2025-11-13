@@ -19,11 +19,12 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             SuperAdminSeeder::class,
-           BankSeeder::class,
-      
-     
-        ShipperSeeder::class,
-        CurrencySeeder::class,
+            BankSeeder::class,
+
+
+
+            CurrencySeeder::class,
+            CompanyCategorySeeder::class
 
 
 
