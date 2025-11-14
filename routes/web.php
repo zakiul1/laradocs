@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SalesInvoiceController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Auth\LoginController;
@@ -199,16 +200,40 @@ Route::middleware(['auth'])->group(function () {
         */
         Route::middleware('role:admin,super_admin')->group(function () {
 
-            // Sample Invoices (index, create, store, show, edit, update)
+            // SALES INVOICES
+            Route::resource('sales-invoices', SalesInvoiceController::class)
+                ->names('sales-invoices')
+                ->parameters(['sales-invoices' => 'salesInvoice']);
+
+            Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf'])
+                ->name('sales-invoices.pdf');
+
+            // SAMPLE INVOICES (you already had this)
             Route::resource('sample-invoices', SampleInvoiceController::class)
                 ->names('sample-invoices')
                 ->parameters(['sample-invoices' => 'sampleInvoice'])
-                ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+                ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
 
-            // PDF export
             Route::get('sample-invoices/{sampleInvoice}/pdf', [SampleInvoiceController::class, 'pdf'])
                 ->name('sample-invoices.pdf');
         });
+
+        /*
+         * SALES INVOICES (LC / TT)
+         */
+        Route::resource('sales-invoices', SalesInvoiceController::class)
+            ->names('sales-invoices')
+            ->parameters(['sales-invoices' => 'salesInvoice']);
+
+        Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf'])
+            ->name('sales-invoices.pdf');
+        Route::post(
+            '/admin/sales-invoices/{salesInvoice}/preview',
+            [SalesInvoiceController::class, 'previewEdit']
+        )
+            ->name('admin.sales-invoices.preview');
+
+
 
     });
 });

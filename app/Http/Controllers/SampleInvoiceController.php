@@ -9,7 +9,8 @@ use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use PDF; // barryvdh/laravel-dompdf
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class SampleInvoiceController extends Controller
 {
@@ -191,6 +192,18 @@ class SampleInvoiceController extends Controller
         return view('sample_invoices.show', [
             'invoice' => $sampleInvoice,
         ]);
+    }
+    public function destroy(SampleInvoice $sampleInvoice)
+    {
+        // Make sure items are deleted first (FK constraints)
+        DB::transaction(function () use ($sampleInvoice) {
+            $sampleInvoice->items()->delete();
+            $sampleInvoice->delete();
+        });
+
+        return redirect()
+            ->route('admin.sample-invoices.index')
+            ->with('success', 'Sample Invoice deleted successfully.');
     }
 
     public function pdf(SampleInvoice $sampleInvoice)

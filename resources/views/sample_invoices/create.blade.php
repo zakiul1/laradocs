@@ -108,72 +108,118 @@
                 </div>
 
                 {{-- ITEMS --}}
-                <div class="mt-4">
-                    <table class="w-full text-xs border border-gray-200 dark:border-gray-700">
-                        <thead class="bg-gray-100 dark:bg-gray-900">
-                            <tr>
-                                <th class="px-2 py-1 border-b w-16">Art Num</th>
-                                <th class="px-2 py-1 border-b">ARTICLE DESCRIPTION</th>
-                                <th class="px-2 py-1 border-b w-16">SIZE</th>
-                                <th class="px-2 py-1 border-b w-20">HS CODE</th>
-                                <th class="px-2 py-1 border-b w-16">QTY</th>
-                                <th class="px-2 py-1 border-b w-24">UNIT PRICE</th>
-                                <th class="px-2 py-1 border-b w-24">SUB TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(row, index) in rows" :key="row.key">
+                <div class="mt-6">
+                    <div
+                        class="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white/90 dark:bg-gray-900">
+                        <table class="w-full text-xs md:text-sm">
+                            <thead class="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-200">
                                 <tr>
-                                    <td class="border-t">
-                                        <input type="text" class="w-full px-1 py-1 border-none focus:ring-0"
-                                            :name="`items[${index}][art_num]`" x-model="row.art_num">
-                                    </td>
-                                    <td class="border-t">
-                                        <input type="text" class="w-full px-1 py-1 border-none focus:ring-0"
-                                            :name="`items[${index}][description]`" x-model="row.description">
-                                    </td>
-                                    <td class="border-t">
-                                        <input type="text" class="w-full px-1 py-1 border-none focus:ring-0"
-                                            :name="`items[${index}][size]`" x-model="row.size">
-                                    </td>
-                                    <td class="border-t">
-                                        <input type="text" class="w-full px-1 py-1 border-none focus:ring-0"
-                                            :name="`items[${index}][hs_code]`" x-model="row.hs_code">
-                                    </td>
-                                    <td class="border-t">
-                                        <input type="number" min="0"
-                                            class="w-full px-1 py-1 border-none focus:ring-0 text-right"
-                                            :name="`items[${index}][qty]`" x-model.number="row.qty"
-                                            x-on:input="recalcRow(row)">
-                                    </td>
-                                    <td class="border-t">
-                                        <input type="number" step="0.01" min="0"
-                                            class="w-full px-1 py-1 border-none focus:ring-0 text-right"
-                                            :name="`items[${index}][unit_price]`" x-model.number="row.unit_price"
-                                            x-on:input="recalcRow(row)">
-                                    </td>
-                                    <td class="border-t text-right px-2">
-                                        <input type="hidden" :name="`items[${index}][sub_total]`" :value="row.sub_total">
-                                        <span x-text="row.sub_total.toFixed(2)"></span>
+                                    <th class="px-3 py-2 text-left w-24">Art Num</th>
+                                    <th class="px-3 py-2 text-left">Article Description</th>
+                                    <th class="px-3 py-2 text-left w-20">Size</th>
+                                    <th class="px-3 py-2 text-left w-24">HS Code</th>
+                                    <th class="px-3 py-2 text-right w-20">Qty</th>
+                                    <th class="px-3 py-2 text-right w-28">Unit Price</th>
+                                    <th class="px-3 py-2 text-right w-28">Sub Total</th>
+                                    <th class="px-3 py-2 text-center w-6">#</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <template x-for="(row, index) in rows" :key="row.key">
+                                    <tr class="border-t border-gray-100 dark:border-gray-700">
+                                        {{-- Art Num --}}
+                                        <td class="px-3 py-2 align-top">
+                                            <input type="text"
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-0 focus:outline-none"
+                                                :name="`items[${index}][art_num]`" x-model="row.art_num">
+                                        </td>
+
+                                        {{-- Description --}}
+                                        <td class="px-3 py-2 align-top">
+                                            <textarea
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-0 focus:outline-none"
+                                                rows="2" :name="`items[${index}][description]`" x-model="row.description"></textarea>
+                                        </td>
+
+                                        {{-- Size --}}
+                                        <td class="px-3 py-2 align-top">
+                                            <input type="text"
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-0 focus:outline-none"
+                                                :name="`items[${index}][size]`" x-model="row.size">
+                                        </td>
+
+                                        {{-- HS Code --}}
+                                        <td class="px-3 py-2 align-top">
+                                            <input type="text"
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 focus:ring-0 focus:outline-none"
+                                                :name="`items[${index}][hs_code]`" x-model="row.hs_code">
+                                        </td>
+
+                                        {{-- Qty --}}
+                                        <td class="px-3 py-2 align-top text-right">
+                                            <input type="number" min="0"
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-right focus:ring-0 focus:outline-none"
+                                                :name="`items[${index}][qty]`" x-model.number="row.qty"
+                                                x-on:input="recalcRow(row)">
+                                        </td>
+
+                                        {{-- Unit Price --}}
+                                        <td class="px-3 py-2 align-top text-right">
+                                            <input type="number" min="0" step="0.01"
+                                                class="w-full px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-right focus:ring-0 focus:outline-none"
+                                                :name="`items[${index}][unit_price]`" x-model.number="row.unit_price"
+                                                x-on:input="recalcRow(row)">
+                                        </td>
+
+                                        {{-- Sub Total --}}
+                                        <td class="px-3 py-2 align-top text-right">
+                                            <input type="hidden" :name="`items[${index}][sub_total]`"
+                                                :value="row.sub_total">
+                                            <span class="inline-block min-w-[70px]"
+                                                x-text="row.sub_total.toFixed(2)"></span>
+                                        </td>
+
+                                        {{-- Row remove icon (still uses your removeRow) --}}
+                                        <td class="px-2 py-2 align-top text-center">
+                                            <button type="button" class="text-red-500 hover:text-red-700 text-xs"
+                                                x-on:click="removeRow()">
+                                                &times;
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+
+                            <tfoot class="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                    <td colspan="8" class="px-3 py-2">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <div class="space-x-2">
+                                                <button type="button"
+                                                    class="px-3 py-1.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
+                                                    x-on:click="addRow()">
+                                                    + Add Line
+                                                </button>
+                                                <button type="button"
+                                                    class="px-3 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white"
+                                                    x-on:click="removeRow()">
+                                                    × Remove
+                                                </button>
+                                            </div>
+
+                                            <div class="text-sm">
+                                                <span class="font-semibold mr-2">Total</span>
+                                                <span x-text="totalFormatted"></span>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
-
-                    <div class="flex justify-between mt-2 text-xs items-center">
-                        <div class="space-x-2">
-                            <button type="button" class="px-3 py-1.5 rounded-xl bg-blue-500 text-white text-xs"
-                                x-on:click="addRow()">+ More</button>
-                            <button type="button" class="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs"
-                                x-on:click="removeRow()">× Remove</button>
-                        </div>
-                        <div class="text-sm">
-                            <span class="font-semibold mr-2">Total :</span>
-                            <span x-text="totalFormatted"></span>
-                        </div>
+                            </tfoot>
+                        </table>
                     </div>
                 </div>
+
 
                 {{-- FOOTER NOTE --}}
                 <div class="mt-4">

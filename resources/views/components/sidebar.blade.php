@@ -18,8 +18,9 @@
     // Companies (super_admin only)
     $onCompanies = request()->routeIs('admin.companies.*');
 
-    // Sample Invoices (admin & super_admin)
+    // Sample & Sales Invoices (admin & super_admin)
     $onSampleInvoices = request()->routeIs('admin.sample-invoices.*');
+    $onSalesInvoices = request()->routeIs('admin.sales-invoices.*');
 @endphp
 
 <style>
@@ -40,7 +41,7 @@
     openUsers: @js($onUsers),
 
     // WORKSPACE: Invoice accordion
-    openInvoices: @js($onSampleInvoices),
+    openInvoices: @js($onSampleInvoices || $onSalesInvoices),
 }" x-init="sidebarOpen = window.innerWidth > 1024" @resize.window="sidebarOpen = window.innerWidth > 1024">
 
     <nav :class="sidebarOpen ? 'w-64' : 'w-20'"
@@ -90,12 +91,12 @@
                     </x-nav-link>
                 </li>
 
-                {{-- Invoice (Sample Invoice submenu) --}}
+                {{-- Invoice (Sample + Sales Invoice submenus) --}}
                 <li>
                     <button @click="openInvoices = !openInvoices"
                         class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                                hover:bg-gray-100 dark:hover:bg-gray-800
-                               {{ $onSampleInvoices ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
+                               {{ $onSampleInvoices || $onSalesInvoices ? 'bg-gray-100 dark:bg-gray-800' : '' }}">
                         <div class="flex items-center gap-3">
                             <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor">
@@ -115,18 +116,20 @@
 
                     <div x-cloak x-show="openInvoices" x-transition
                         class="mt-1 ml-8 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                        {{-- Sample Invoice --}}
                         <a href="{{ route('admin.sample-invoices.index') }}"
                             class="block pl-4 py-2 text-sm
-                               {{ request()->routeIs('admin.sample-invoices.index') || request()->routeIs('admin.sample-invoices.show') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                               {{ request()->routeIs('admin.sample-invoices.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
                                hover:text-gray-900 dark:hover:text-white">
-                            Sample Invoices
+                            Sample Invoice
                         </a>
 
-                        <a href="{{ route('admin.sample-invoices.create') }}"
+                        {{-- Sales Invoice --}}
+                        <a href="{{ route('admin.sales-invoices.index') }}"
                             class="block pl-4 py-2 text-sm
-                               {{ request()->routeIs('admin.sample-invoices.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
+                               {{ request()->routeIs('admin.sales-invoices.*') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
                                hover:text-gray-900 dark:hover:text-white">
-                            Add Sample Invoice
+                            Sales Invoice
                         </a>
                     </div>
                 </li>
@@ -258,7 +261,7 @@
                             <a href="{{ route('admin.customers.create') }}"
                                 class="block pl-4 py-2 text-sm
                                    {{ request()->routeIs('admin.customers.create') ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-gray-400' }}
-                                   hover:text-gray-900 dark:hover:text:white">
+                                   hover:text-gray-900 dark:hover:text-white">
                                 Add Customer
                             </a>
                         </div>
