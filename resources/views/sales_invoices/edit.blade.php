@@ -2,244 +2,289 @@
 
 @section('content')
     @php
-        // Items for Alpine
-        $initialItems = old(
-            'items',
-            $invoice->items
-                ->map(
-                    fn($it) => [
-                        'art_num' => $it->art_num,
-                        'description' => $it->description,
-                        'size' => $it->size,
-                        'qty' => $it->qty,
-                        'unit_price' => $it->unit_price,
-                    ],
-                )
-                ->toArray(),
-        );
+        $defaultTerms =
+            ($invoice->invoice_type ?? 'LC') === 'TT'
+                ? $defaultTermsTT ??
+                    "1. All the charges of sender's and receiver's banks are sender / purchaser's account."
+                : $defaultTermsLC ??
+                    "1. The type of the L/C is irrevocable and transferable at sight.\n" .
+                        "2. This L/C should be transferred by Uttara Bank Ltd.\n" .
+                        "3. Trans-shipments and partial shipments are allowed.\n" .
+                        "4. +/- 3% in quantity and value is accepted.\n" .
+                        "5. Negotiations are allowed with any Bank in Bangladesh.\n" .
+                        "6. All discrepancies will be acceptable, except late shipment, prices and quantities.\n" .
+                        '7. Country of origin: Bangladesh.';
 
+        $defaultFobMessage =
+            $defaultFobMessage ??
+            "Please keep the following words in the B/L or Airway bill terms in the L/C:\n" .
+                "\"Full set clean on board ocean bill of lading / airway bill made out to the order of the negotiating bank in Bangladesh and endorsed to the L/C opening bank marked freight Collect.\"";
+
+        $defaultCifMessage = $defaultCifMessage ?? 'H.S Code:61.05.1000';
+
+        $defaultFooterLc = 'PLEASE ADVISED THE L/C THROUGH OUR BANK AS ABOVE';
+        $defaultFooterTt = 'PLEASE ADVISED THE TT THROUGH OUR BANK AS ABOVE';
+
+        // items
+        $initialItems = old('items');
+        if (!is_array($initialItems)) {
+            $initialItems = $invoice->items
+                ->map(function ($item) {
+                    return [
+                        'art_num' => $item->art_num,
+                        'description' => $item->description,
+                        'size' => $item->size,
+                        'qty' => $item->qty,
+                        'unit_price' => $item->unit_price,
+                    ];
+                })
+                ->toArray();
+        }
         if (empty($initialItems)) {
-            $initialItems = [['art_num' => '', 'description' => '', 'size' => '', 'qty' => '', 'unit_price' => '']];
+            $initialItems = [
+                [
+                    'art_num' => '',
+                    'description' => '',
+                    'size' => '',
+                    'qty' => '',
+                    'unit_price' => '',
+                ],
+            ];
         }
 
-        $initialState = [
-            'invoice_type' => old('invoice_type', $invoice->invoice_type),
-            'issue_date' => old('issue_date', optional($invoice->issue_date)->format('Y-m-d')),
-            'delivery_date' => old('delivery_date', optional($invoice->delivery_date)->format('Y-m-d')),
-            'payment_mode' => old('payment_mode', $invoice->payment_mode),
-            'terms_of_shipment' => old('terms_of_shipment', $invoice->terms_of_shipment),
-            'commercial_cost' => old('commercial_cost', $invoice->commercial_cost),
-            'siatex_discount' => old('siatex_discount', $invoice->siatex_discount),
-            'terms_and_conditions' => old('terms_conditions', $invoice->terms_conditions),
+        // bankBlocks from all Shipper Banks
+        $bankBlocks = [];
+        foreach ($banks as $bank) {
+            if (!$bank->company_id) {
+                continue;
+            }
+            $bankBlocks[$bank->company_id] = trim(
+                implode(
+                    "\n",
+                    array_filter([
+                        $bank->bank_account ? 'Account # ' . $bank->bank_account : null,
+                        $bank->name,
+                        $bank->address,
+                        $bank->country,
+                        $bank->swift_code ? 'Swift: ' . $bank->swift_code : null,
+                    ]),
+                ),
+            );
+        }
 
-            'message_type' => old('message_type', $invoice->message_type),
+        // customerBlocks
+        $customerBlocks = [];
+        foreach ($customers as $customer) {
+            $customerBlocks[$customer->id] = trim(
+                implode(
+                    "\n",
+                    array_filter([
+                        $customer->company_name ?: $customer->name,
+                        $customer->address ?: $customer->shipping_address,
+                        $customer->country,
+                    ]),
+                ),
+            );
+        }
+
+        $invoiceType = old('invoice_type', $invoice->invoice_type ?? 'LC');
+
+        $paymentMode = old(
+            'payment_mode',
+            $invoice->payment_mode ??
+                ($invoiceType === 'TT'
+                    ? $defaultPaymentModeTT ?? 'Telegraphic Transfer'
+                    : $defaultPaymentModeLC ?? 'Transferable L/C at sight'),
+        );
+
+        $state = [
+            'invoice_type' => $invoiceType,
+            'shipper_id' => old('shipper_id', $invoice->shipper_id),
+            'customer_id' => old('customer_id', $invoice->customer_id),
+            'issue_date' => old('issue_date', optional($invoice->issue_date)->toDateString()),
+            'delivery_date' => old('delivery_date', optional($invoice->delivery_date)->toDateString()),
+            'payment_mode' => $paymentMode,
+            'terms_of_shipment' => old('terms_of_shipment', $invoice->terms_of_shipment),
+            'currency_id' => old('currency_id', $invoice->currency_id),
+            'commercial_cost' => (float) old('commercial_cost', $invoice->commercial_cost ?? 0),
+            'siatex_discount' => (float) old('siatex_discount', $invoice->siatex_discount ?? 0),
+
+            'terms_conditions' => old('terms_conditions', $invoice->terms_conditions ?? $defaultTerms),
+            'message_type' => old('message_type', $invoice->message_type ?? 'FOB'),
+            'fob_message_default' => $defaultFobMessage,
+            'cif_message_default' => $defaultCifMessage,
             'message_body' => old('message_body', $invoice->message_body),
-            'footer_note' => old('footer_note', $invoice->footer_note),
+            'footer_note' => old(
+                'footer_note',
+                $invoice->footer_note ?? ($invoiceType === 'TT' ? $defaultFooterTt : $defaultFooterLc),
+            ),
+
+            'items' => $initialItems,
+            'bank_snapshot' => old('bank_snapshot', $invoice->bank_snapshot),
+            'purchaser_snapshot' => old('purchaser_snapshot', $invoice->purchaser_snapshot),
+            'bank_blocks' => $bankBlocks,
+            'customer_blocks' => $customerBlocks,
         ];
     @endphp
 
     <div class="max-w-6xl mx-auto p-6 space-y-6">
         <header class="flex items-center justify-between">
-            <h1 class="text-2xl font-bold">Edit Sales Invoice</h1>
+            <div>
+                <h1 class="text-2xl font-bold">Edit Sales Invoice</h1>
+                <p class="text-xs text-gray-500 mt-1">Invoice #{{ $invoice->invoice_no }}</p>
+            </div>
             <a href="{{ route('admin.sales-invoices.index') }}"
                 class="px-4 py-2 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                 Back
             </a>
         </header>
 
-        <div x-data="salesInvoiceEditor(
-            @json($initialItems),
-            @json($initialState), {
-                lcPayment: @json($defaultPaymentModeLC),
-                ttPayment: @json($defaultPaymentModeTT),
-                lcTerms: @json($defaultTermsLC),
-                ttTerms: @json($defaultTermsTT),
-                fobMessage: @json($defaultFobMessage),
-                cifMessage: @json($defaultCifMessage)
-            }
-        )"
+        <div x-data="salesInvoiceEditor(@js($state))" x-init="init()"
             class="rounded-2xl shadow-lg bg-white/90 dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
-
             <form id="salesInvoiceEditForm" method="POST" action="{{ route('admin.sales-invoices.update', $invoice) }}">
-
                 @csrf
                 @method('PUT')
 
-                {{-- TOP: Shipper + type + no --}}
+                {{-- TOP BAR: Shipper + Invoice Type + Invoice No --}}
                 <div
-                    class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-                    <div class="flex-1 space-y-3">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">
-                                    Select Shipper <span class="text-red-500">*</span>
-                                </label>
-                                <select name="shipper_id"
-                                    class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
-                                    required>
-                                    <option value="">Select Shipper</option>
-                                    @foreach ($shippers as $s)
-                                        <option value="{{ $s->id }}" @selected(old('shipper_id', $invoice->shipper_id) == $s->id)>
-                                            {{ $s->company_name ?? $s->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('shipper_id')
-                                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
+                    class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Type</label>
-                                <div class="flex items-center gap-4 mt-1">
-                                    <label class="inline-flex items-center gap-1 text-sm">
-                                        <input type="radio" name="invoice_type" value="LC"
-                                            x-model="state.invoice_type">
-                                        <span>L/C Invoice</span>
-                                    </label>
-                                    <label class="inline-flex items-center gap-1 text-sm">
-                                        <input type="radio" name="invoice_type" value="TT"
-                                            x-model="state.invoice_type">
-                                        <span>TT Invoice</span>
-                                    </label>
-                                </div>
-                                @error('invoice_type')
-                                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
+                    <!-- Shipper -->
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm font-medium mb-1">Select Shipper <span
+                                class="text-red-500">*</span></label>
+                        <select name="shipper_id" x-model="shipper_id" @change="updateBankSnapshot()"
+                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
+                            required>
+                            <option value="">Select Shipper</option>
+                            @foreach ($shippers as $s)
+                                <option value="{{ $s->id }}">
+                                    {{ $s->company_name ?? $s->name }}
+                                </option>
+                            @endforeach
+                        </select>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Our Bank (Shipper Bank)</label>
-                            <select name="bank_id"
-                                class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
-                                <option value="">Select Bank</option>
-                                @foreach ($banks as $b)
-                                    {{-- <== uses $banks --}}
-                                    <option value="{{ $b->id }}" @selected(old('bank_id', $invoice->bank_id) == $b->id)>
-                                        {{ $b->name }} ({{ $b->bank_account }})
-                                    </option>
-                                @endforeach
-                            </select>
+                        @error('shipper_id')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-                            @error('bank_id')
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
+                    <!-- Customer -->
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Customer <span class="text-red-500">*</span></label>
+                        <select name="customer_id" x-model="customer_id" @change="updatePurchaserSnapshot()"
+                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5 text-sm"
+                            required>
+                            <option value="">Select Customer</option>
+                            @foreach ($customers as $c)
+                                <option value="{{ $c->id }}">
+                                    {{ $c->company_name }} ({{ $c->name }})
+                                </option>
+                            @endforeach
+                        </select>
+
+                        @error('customer_id')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Invoice Type -->
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm font-medium mb-1">Invoice Type</label>
+                        <div class="flex items-center gap-4 text-sm">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="invoice_type" value="LC" x-model="invoice_type"
+                                    @change="onTypeChanged" class="rounded border-gray-300">
+                                <span>L/C Invoice</span>
+                            </label>
+
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="invoice_type" value="TT" x-model="invoice_type"
+                                    @change="onTypeChanged" class="rounded border-gray-300">
+                                <span>TT Invoice</span>
+                            </label>
                         </div>
                     </div>
 
-                    <div class="w-full md:w-64 space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Invoice No</label>
-                            <input type="number" name="invoice_no" value="{{ old('invoice_no', $invoice->invoice_no) }}"
-                                class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
-                                required>
-                            @error('invoice_no')
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
+                    <!-- Invoice No -->
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm font-medium mb-1">Invoice No</label>
+                        <input type="number" name="invoice_no" value="{{ old('invoice_no', $invoice->invoice_no) }}"
+                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2"
+                            required>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Currency</label>
-                            <select name="currency_id"
-                                class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2">
-                                <option value="">Select Currency</option>
-                                @foreach ($currencies as $cur)
-                                    <option value="{{ $cur->id }}" @selected(old('currency_id', $invoice->currency_id) == $cur->id)>
-                                        {{ $cur->code }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('currency_id')
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        @error('invoice_no')
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
-                {{-- MIDDLE CARDS --}}
+                {{-- HEADER BODY: Our Bank Address + Purchaser --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {{-- Our Bank Address --}}
                     <div
-                        class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4 bg-white/80 dark:bg-gray-800/80">
+                        class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4 bg-white/80 dark:bg-gray-800/80 space-y-3">
                         <h2 class="text-sm font-semibold mb-1">Our Bank Address</h2>
-                        <div
-                            class="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/60 min-h-[96px] text-sm whitespace-pre-line">
-                            {{ $invoice->bank_snapshot }}
-                        </div>
+                        <textarea name="bank_snapshot" rows="5" x-model="bank_snapshot"
+                            class="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/60 text-sm whitespace-pre-line"></textarea>
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                            This block is taken from the Shipper’s Bank (type = Shipper Bank) automatically,
+                            but you can edit it.
+                        </p>
                     </div>
 
+                    {{-- Purchaser --}}
                     <div
                         class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4 bg-white/80 dark:bg-gray-800/80 space-y-3">
                         <h2 class="text-sm font-semibold mb-1">Purchaser</h2>
-
                         <div>
-                            <label class="block text-xs font-medium mb-1">Customer <span
-                                    class="text-red-500">*</span></label>
-                            <select name="customer_id"
-                                class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5 text-sm"
-                                required>
-                                <option value="">Select Customer</option>
-                                @foreach ($customers as $c)
-                                    <option value="{{ $c->id }}" @selected(old('customer_id', $invoice->customer_id) == $c->id)>
-                                        {{ $c->company_name }} ({{ $c->name }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('customer_id')
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium mb-1">Purchaser Snapshot</label>
-                            <div
-                                class="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/60 min-h-[96px] text-sm whitespace-pre-line">
-                                {{ $invoice->customer_address_block }}
-                            </div>
+                            <textarea name="purchaser_snapshot" rows="5" x-model="purchaser_snapshot"
+                                class="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/60 text-sm whitespace-pre-line"></textarea>
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                Company, address &amp; country are auto-filled from the customer but can be edited.
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {{-- ISSUE / DELIVERY / PAYMENT / TERMS --}}
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4 text-sm">
+                {{-- DATES / PAYMENT / TERMS / CURRENCY --}}
+                <div
+                    class="grid grid-cols-1 md:grid-cols-5 gap-3 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 mb-4 text-xs md:text-sm">
                     <div>
-                        <label class="block text-xs font-medium mb-1">Issue Date</label>
-                        <input type="date" name="issue_date" x-model="state.issue_date"
-                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-3 py-1.5">
-                        @error('issue_date')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
+                        <label class="block font-medium mb-1">Issue Date</label>
+                        <input type="date" name="issue_date" x-model="issue_date"
+                            class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5">
                     </div>
-
                     <div>
-                        <label class="block text-xs font-medium mb-1">Delivery Date</label>
-                        <input type="date" name="delivery_date" x-model="state.delivery_date"
-                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-3 py-1.5">
-                        @error('delivery_date')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
+                        <label class="block font-medium mb-1">Delivery Date</label>
+                        <input type="date" name="delivery_date" x-model="delivery_date"
+                            class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5">
                     </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-medium mb-1">Payment Mode</label>
-                        <input type="text" name="payment_mode" x-model="state.payment_mode"
-                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-3 py-1.5">
-                        @error('payment_mode')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <div>
-                        <label class="block text-xs font-medium mb-1">Terms of Shipment</label>
-                        <input type="text" name="terms_of_shipment" x-model="state.terms_of_shipment"
-                            class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-3 py-1.5">
-                        @error('terms_of_shipment')
-                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                        @enderror
+                        <label class="block font-medium mb-1">Payment Mode</label>
+                        <input type="text" name="payment_mode" x-model="payment_mode"
+                            class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Terms of Shipment</label>
+                        <input type="text" name="terms_of_shipment" x-model="terms_of_shipment"
+                            class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Currency</label>
+                        <select name="currency_id" x-model="currency_id"
+                            class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-3 py-1.5">
+                            <option value="">Select</option>
+                            @foreach ($currencies as $cur)
+                                <option value="{{ $cur->id }}">
+                                    {{ $cur->code }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
-                {{-- ITEMS TABLE (same as create) --}}
+                {{-- ITEMS TABLE --}}
                 <div class="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden mb-4">
                     <table class="min-w-full text-xs md:text-sm">
                         <thead class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
@@ -293,9 +338,9 @@
                                     </td>
                                 </tr>
                             </template>
-
-                            {{-- Add line --}}
-                            <tr class="border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                        </tbody>
+                        <tfoot class="bg-gray-50 dark:bg-gray-800">
+                            <tr>
                                 <td colspan="7" class="px-2 py-2">
                                     <button type="button"
                                         class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
@@ -305,118 +350,104 @@
                                 </td>
                             </tr>
 
-                            {{-- Commercial cost --}}
+                            <!-- 1) Commercial Cost -->
                             <tr class="border-t border-gray-100 dark:border-gray-700">
                                 <td colspan="4"></td>
-                                <td class="px-2 py-2 text-right font-medium">
-                                    Commercial cost
-                                </td>
-                                <td class="px-2 py-2 text-right">
+                                <td class="px-2 py-1.5 text-right text-xs md:text-sm">Commercial Cost</td>
+                                <td class="px-2 py-1.5 text-right">
                                     <input type="number" min="0" step="0.01"
                                         class="w-full text-right rounded-lg border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-2 py-1 text-xs"
-                                        x-model.number="state.commercial_cost" name="commercial_cost">
+                                        name="commercial_cost" x-model.number="commercial_cost">
                                 </td>
                                 <td></td>
                             </tr>
 
-                            {{-- Items total + qty --}}
-                            <tr class="border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                            <!-- 2) Total Qty -->
+                            <tr class="border-t border-gray-100 dark:border-gray-700">
                                 <td colspan="3"></td>
-                                <td class="px-2 py-2 text-right font-semibold">
-                                    <span x-text="totalQty() + ' Pcs'"></span>
-                                </td>
-                                <td class="px-2 py-2 text-right font-semibold">
-                                    Items Total
-                                </td>
-                                <td class="px-2 py-2 text-right font-semibold">
-                                    <span x-text="formatMoney(itemsTotalWithCommercial())"></span>
-                                </td>
+                                <td class="px-2 py-1.5 text-right font-semibold">Total Qty:</td>
+                                <td class="px-2 py-1.5 text-right" x-text="totalQty() + ' Pcs'"></td>
+                                <td class="px-2 py-1.5 text-right font-semibold" x-text="formatMoney(itemsTotal())"></td>
                                 <td></td>
                             </tr>
 
-                            {{-- Discount --}}
-                            <tr class="border-t border-gray-100 dark:border-gray-700">
+                            <!-- 3) Siatex Discount -->
+                            <tr>
                                 <td colspan="4"></td>
-                                <td class="px-2 py-2 text-right font-medium">
-                                    Siatex Discount
-                                </td>
-                                <td class="px-2 py-2 text-right">
+                                <td class="px-2 py-1.5 text-right text-xs md:text-sm">Siatex Discount</td>
+                                <td class="px-2 py-1.5 text-right">
                                     <input type="number" min="0" step="0.01"
                                         class="w-full text-right rounded-lg border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-900 px-2 py-1 text-xs"
-                                        x-model.number="state.siatex_discount" name="siatex_discount">
+                                        name="siatex_discount" x-model.number="siatex_discount">
                                 </td>
                                 <td></td>
                             </tr>
 
-                            {{-- Grand total --}}
-                            <tr class="border-t border-gray-100 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                            <!-- 4) Final Total -->
+                            <tr>
                                 <td colspan="4"></td>
-                                <td class="px-2 py-2 text-right font-semibold">
-                                    Total
-                                </td>
-                                <td class="px-2 py-2 text-right font-semibold">
-                                    <span x-text="formatMoney(grandTotal())"></span>
-                                </td>
+                                <td class="px-2 py-2 text-right font-semibold">Total:</td>
+                                <td class="px-2 py-2 text-right font-semibold" x-text="formatMoney(grandTotal())"></td>
                                 <td></td>
                             </tr>
-                        </tbody>
+                        </tfoot>
                     </table>
                 </div>
 
-                {{-- Terms & conditions --}}
+                {{-- Terms & Conditions --}}
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">Terms and Conditions</label>
-                    <textarea name="terms_conditions" rows="5"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-sm"
-                        x-model="state.terms_and_conditions"></textarea>
-                    @error('terms_and_conditions')
+                    <textarea name="terms_conditions" rows="6" x-model="terms_conditions"
+                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-sm whitespace-pre-line"></textarea>
+                    @error('terms_conditions')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
-                {{-- FOB / CIF message --}}
-                <div class="mb-4 space-y-2">
-                    <div class="flex items-center gap-4 text-sm">
-                        <label class="inline-flex items-center gap-1">
-                            <input type="radio" name="message_type" value="FOB" x-model="state.message_type">
+                {{-- FOB / CIF MESSAGE + FOOTER NOTE --}}
+                <div class="mb-4 space-y-3">
+                    <div class="flex items-center gap-6 text-sm">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="message_type" value="FOB" x-model="message_type"
+                                @change="onMessageTypeChanged" class="rounded border-gray-300">
                             <span>FOB Message</span>
                         </label>
-                        <label class="inline-flex items-center gap-1">
-                            <input type="radio" name="message_type" value="CIF" x-model="state.message_type">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="radio" name="message_type" value="CIF" x-model="message_type"
+                                @change="onMessageTypeChanged" class="rounded border-gray-300">
                             <span>CIF Message</span>
                         </label>
                     </div>
 
-                    <textarea name="message_body" rows="3"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-sm"
-                        x-model="state.message_body"></textarea>
+                    <textarea name="message_body" rows="4" x-model="message_body"
+                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-sm whitespace-pre-line"></textarea>
                     @error('message_body')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
-                </div>
 
-                {{-- Footer note --}}
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Footer Note (bottom line)</label>
-                    <input type="text" name="footer_note" x-model="state.footer_note"
-                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-sm">
+                    <input type="text" name="footer_note" x-model="footer_note"
+                        class="w-full rounded-2xl border border-gray-300 dark:border-gray-700 bg-white/90 dark:bg-gray-800 px-4 py-2 text-center text-sm font-semibold uppercase tracking-wide">
                     @error('footer_note')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
-                {{-- Actions --}}
                 <div class="flex flex-wrap justify-end gap-3">
-                    <button type="submit" name="preview" value="1"
+                    <!-- PREVIEW BUTTON (PUT to preview route) -->
+                    <button type="submit" formaction="{{ route('admin.sales-invoices.preview', $invoice) }}"
+                        name="preview" value="1"
                         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
                         Preview
                     </button>
+
+                    <!-- SAVE BUTTON -->
                     <button type="submit"
                         class="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90">
                         Update Invoice
                     </button>
                 </div>
 
+                {{-- Validation summary --}}
                 @if ($errors->any())
                     <div class="mt-4 rounded-2xl bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 p-4">
                         <ul class="list-disc pl-6 text-sm">
@@ -432,21 +463,63 @@
 @endsection
 
 @push('scripts')
-    {{-- Reuse same Alpine helper as in create --}}
+    {{-- Reuse the same Alpine component as in create --}}
     <script>
-        function salesInvoiceEditor(initialItems, initialState, defaults) {
+        function salesInvoiceEditor(initial) {
             return {
-                items: initialItems || [],
-                state: initialState || {},
-                defaults: defaults || {},
+                invoice_type: initial.invoice_type || 'LC',
+                shipper_id: initial.shipper_id || '',
+                customer_id: initial.customer_id || '',
+                issue_date: initial.issue_date || '',
+                delivery_date: initial.delivery_date || '',
+                payment_mode: initial.payment_mode || '',
+                terms_of_shipment: initial.terms_of_shipment || '',
+                currency_id: initial.currency_id || '',
+                commercial_cost: Number(initial.commercial_cost || 0),
+                siatex_discount: Number(initial.siatex_discount || 0),
+                terms_conditions: initial.terms_conditions || '',
+                message_type: initial.message_type || 'FOB',
+                fob_message_default: initial.fob_message_default || '',
+                cif_message_default: initial.cif_message_default || '',
+                message_body: initial.message_body || '',
+                footer_note: initial.footer_note || '',
+                bank_snapshot: initial.bank_snapshot || '',
+                purchaser_snapshot: initial.purchaser_snapshot || '',
+                bankBlocks: initial.bank_blocks || {},
+                customerBlocks: initial.customer_blocks || {},
+                items: initial.items || [],
 
                 init() {
-                    if (!this.items.length) this.addRow();
-                    this.applyTypeDefaultsIfEmpty();
-                    this.applyMessageDefaultsIfEmpty();
+                    if (!this.payment_mode) this.setDefaultPaymentMode();
+                    if (!this.footer_note) this.setFooterByType();
+                    if (!this.message_body) {
+                        this.message_body = this.message_type === 'CIF' ?
+                            this.cif_message_default :
+                            this.fob_message_default;
+                    }
 
-                    this.$watch('state.invoice_type', () => this.applyTypeDefaultsIfEmpty());
-                    this.$watch('state.message_type', () => this.applyMessageDefaultsIfEmpty());
+                    this.updateBankSnapshot();
+                    this.updatePurchaserSnapshot();
+
+                    if (this.$watch) {
+                        this.$watch('shipper_id', () => this.updateBankSnapshot());
+                        this.$watch('customer_id', () => this.updatePurchaserSnapshot());
+                        this.$watch('invoice_type', () => {
+                            this.setDefaultPaymentMode();
+                            this.setFooterByType();
+                        });
+                    }
+                },
+
+                updateBankSnapshot() {
+                    if (this.bankBlocks[this.shipper_id]) {
+                        this.bank_snapshot = this.bankBlocks[this.shipper_id];
+                    }
+                },
+                updatePurchaserSnapshot() {
+                    if (this.customerBlocks[this.customer_id]) {
+                        this.purchaser_snapshot = this.customerBlocks[this.customer_id];
+                    }
                 },
 
                 addRow() {
@@ -455,51 +528,48 @@
                         description: '',
                         size: '',
                         qty: '',
-                        unit_price: ''
+                        unit_price: '',
                     });
                 },
-                removeRow(i) {
-                    if (this.items.length > 1) this.items.splice(i, 1);
+                removeRow(index) {
+                    if (this.items.length > 1) this.items.splice(index, 1);
                 },
-
                 lineTotal(row) {
                     return Number(row.qty || 0) * Number(row.unit_price || 0);
                 },
                 itemsTotal() {
-                    return this.items.reduce((s, r) => s + this.lineTotal(r), 0);
+                    return this.items.reduce((sum, row) => sum + this.lineTotal(row), 0);
                 },
                 totalQty() {
-                    return this.items.reduce((s, r) => s + Number(r.qty || 0), 0);
-                },
-                itemsTotalWithCommercial() {
-                    return this.itemsTotal() + Number(this.state.commercial_cost || 0);
+                    return this.items.reduce((sum, row) => sum + Number(row.qty || 0), 0);
                 },
                 grandTotal() {
-                    return this.itemsTotalWithCommercial() - Number(this.state.siatex_discount || 0);
+                    return this.itemsTotal() +
+                        Number(this.commercial_cost || 0) -
+                        Number(this.siatex_discount || 0);
                 },
-                formatMoney(v) {
-                    return Number(v || 0).toFixed(2);
-                },
-
-                applyTypeDefaultsIfEmpty() {
-                    if (this.state.invoice_type === 'LC') {
-                        if (!this.state.payment_mode) this.state.payment_mode = this.defaults.lcPayment || '';
-                        if (!this.state.terms_and_conditions) this.state.terms_and_conditions = this.defaults.lcTerms || '';
-                    } else if (this.state.invoice_type === 'TT') {
-                        if (!this.state.payment_mode) this.state.payment_mode = this.defaults.ttPayment || '';
-                        if (!this.state.terms_and_conditions) this.state.terms_and_conditions = this.defaults.ttTerms || '';
-                    }
-                },
-                applyMessageDefaultsIfEmpty() {
-                    if (this.state.message_type === 'FOB') {
-                        if (!this.state.message_body) this.state.message_body = this.defaults.fobMessage || '';
-                    } else if (this.state.message_type === 'CIF') {
-                        if (!this.state.message_body) this.state.message_body = this.defaults.cifMessage || '';
-                    }
+                formatMoney(value) {
+                    return Number(value || 0).toFixed(2);
                 },
 
-                submitForm() {
-                    document.getElementById('salesInvoiceEditForm').submit();
+                setDefaultPaymentMode() {
+                    this.payment_mode = this.invoice_type === 'TT' ?
+                        'Telegraphic Transfer' :
+                        'Transferable L/C at sight';
+                },
+                setFooterByType() {
+                    this.footer_note = this.invoice_type === 'TT' ?
+                        'PLEASE ADVISED THE TT THROUGH OUR BANK AS ABOVE' :
+                        'PLEASE ADVISED THE L/C THROUGH OUR BANK AS ABOVE';
+                },
+                onTypeChanged() {
+                    this.setDefaultPaymentMode();
+                    this.setFooterByType();
+                },
+                onMessageTypeChanged() {
+                    this.message_body = this.message_type === 'CIF' ?
+                        this.cif_message_default :
+                        this.fob_message_default;
                 },
             };
         }

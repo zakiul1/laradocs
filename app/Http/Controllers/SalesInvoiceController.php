@@ -10,6 +10,7 @@ use App\Models\SalesInvoice;
 use App\Models\SalesInvoiceItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class SalesInvoiceController extends Controller
 {
@@ -247,13 +248,19 @@ class SalesInvoiceController extends Controller
 
     public function pdf(SalesInvoice $salesInvoice)
     {
-        $salesInvoice->load('items');
+        $invoice = $salesInvoice->load(['items', 'currency']); // adjust relations as you have them
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sales_invoices.pdf', [
-            'invoice' => $salesInvoice,
-        ])->setPaper('a4');
+        $pdf = Pdf::loadView('sales_invoices.pdf', [
+            'invoice' => $invoice,
+        ])->setPaper('a4', 'portrait');
 
-        return $pdf->download('sales-invoice-' . $salesInvoice->invoice_no . '.pdf');
+        $fileName = 'Sales-Invoice-' . $invoice->invoice_no . '.pdf';
+
+        // open in browser
+        // return $pdf->stream($fileName);
+
+        // force download
+        return $pdf->download($fileName);
     }
 
     // ------------------------------------------------------------------

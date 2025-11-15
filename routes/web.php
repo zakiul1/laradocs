@@ -167,7 +167,6 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('role:super_admin')->group(function () {
             Route::resource('customers', CustomerController::class);
 
-
             // Companies
             Route::resource('companies', \App\Http\Controllers\CompanyController::class)
                 ->names('companies');
@@ -193,14 +192,12 @@ Route::middleware(['auth'])->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | INVOICE MODULE
-        |------------------------------------------------------------------
-        | Only SAMPLE INVOICES now (admin + super_admin)
+        | INVOICE MODULE (admin + super_admin)
         |------------------------------------------------------------------
         */
         Route::middleware('role:admin,super_admin')->group(function () {
 
-            // SALES INVOICES
+            // SALES INVOICES (LC / TT)
             Route::resource('sales-invoices', SalesInvoiceController::class)
                 ->names('sales-invoices')
                 ->parameters(['sales-invoices' => 'salesInvoice']);
@@ -208,7 +205,15 @@ Route::middleware(['auth'])->group(function () {
             Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf'])
                 ->name('sales-invoices.pdf');
 
-            // SAMPLE INVOICES (you already had this)
+            // Preview edited invoice (no DB update)
+            // NOTE: route name now matches route('admin.sales-invoices.preview', $invoice)
+            Route::match(['POST', 'PUT'], 'sales-invoices/{salesInvoice}/preview', [
+                SalesInvoiceController::class,
+                'previewEdit',
+            ])->name('sales-invoices.preview');
+
+
+            // SAMPLE INVOICES
             Route::resource('sample-invoices', SampleInvoiceController::class)
                 ->names('sample-invoices')
                 ->parameters(['sample-invoices' => 'sampleInvoice'])
@@ -218,22 +223,6 @@ Route::middleware(['auth'])->group(function () {
                 ->name('sample-invoices.pdf');
         });
 
-        /*
-         * SALES INVOICES (LC / TT)
-         */
-        Route::resource('sales-invoices', SalesInvoiceController::class)
-            ->names('sales-invoices')
-            ->parameters(['sales-invoices' => 'salesInvoice']);
-
-        Route::get('sales-invoices/{salesInvoice}/pdf', [SalesInvoiceController::class, 'pdf'])
-            ->name('sales-invoices.pdf');
-        Route::post(
-            '/admin/sales-invoices/{salesInvoice}/preview',
-            [SalesInvoiceController::class, 'previewEdit']
-        )
-            ->name('admin.sales-invoices.preview');
-
-
-
+        // no extra duplicated sales-invoices routes
     });
 });

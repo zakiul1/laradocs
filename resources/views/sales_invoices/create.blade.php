@@ -92,7 +92,6 @@
         <div x-data="salesInvoiceEditor(@js($state))" x-init="init()"
             class="rounded-2xl shadow-lg bg-white/90 dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
             <form id="salesInvoiceCreateForm" method="POST" action="{{ route('admin.sales-invoices.store') }}">
-
                 @csrf
 
                 {{-- TOP BAR: Shipper + Invoice Type + Invoice No --}}
@@ -118,7 +117,8 @@
                             <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
-                    <!-- Customer Type -->
+
+                    <!-- Customer -->
                     <div>
                         <label class="block text-xs font-medium mb-1">Customer <span class="text-red-500">*</span></label>
                         <select name="customer_id" x-model="customer_id" @change="updatePurchaserSnapshot()"
@@ -136,6 +136,7 @@
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
                     <!-- Invoice Type -->
                     <div class="w-full md:w-1/3">
                         <label class="block text-sm font-medium mb-1">Invoice Type</label>
@@ -168,10 +169,9 @@
 
                 </div>
 
-
                 {{-- HEADER BODY: Our Bank Address + Purchaser --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {{-- Our Bank Address (auto from shipper, but editable) --}}
+                    {{-- Our Bank Address --}}
                     <div
                         class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4 bg-white/80 dark:bg-gray-800/80 space-y-3">
                         <h2 class="text-sm font-semibold mb-1">Our Bank Address</h2>
@@ -183,12 +183,10 @@
                         </p>
                     </div>
 
-
                     {{-- Purchaser --}}
                     <div
                         class="border border-gray-200 dark:border-gray-700 rounded-2xl p-4 bg-white/80 dark:bg-gray-800/80 space-y-3">
                         <h2 class="text-sm font-semibold mb-1">Purchaser</h2>
-
                         <div>
                             <textarea name="purchaser_snapshot" rows="5" x-model="purchaser_snapshot"
                                 class="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 bg-white/70 dark:bg-gray-900/60 text-sm whitespace-pre-line"></textarea>
@@ -197,7 +195,6 @@
                             </p>
                         </div>
                     </div>
-
                 </div>
 
                 {{-- DATES / PAYMENT / TERMS / CURRENCY --}}
@@ -293,7 +290,6 @@
                             </template>
                         </tbody>
                         <tfoot class="bg-gray-50 dark:bg-gray-800">
-
                             <tr>
                                 <td colspan="7" class="px-2 py-2">
                                     <button type="button"
@@ -344,10 +340,7 @@
                                 <td class="px-2 py-2 text-right font-semibold" x-text="formatMoney(grandTotal())"></td>
                                 <td></td>
                             </tr>
-
                         </tfoot>
-
-
                     </table>
                 </div>
 
@@ -390,11 +383,9 @@
                 </div>
 
                 <div class="flex flex-wrap justify-end gap-3">
-                    <!-- PREVIEW BUTTON -->
-                    <button type="submit" formaction="{{ route('admin.sales-invoices.preview', $invoice->id) }}"
-                        formmethod="POST"
+                    <!-- PREVIEW BUTTON: just adds "preview" field and still posts to store -->
+                    <button type="submit" name="preview" value="1"
                         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
-                        @csrf
                         Preview
                     </button>
 
@@ -404,7 +395,6 @@
                         Save Invoice
                     </button>
                 </div>
-
 
                 {{-- Validation summary --}}
                 @if ($errors->any())
@@ -421,7 +411,6 @@
     </div>
 
 @endsection
-
 
 @push('scripts')
     <script>
@@ -445,36 +434,29 @@
                 message_body: initial.message_body || '',
                 footer_note: initial.footer_note || '',
 
-                // editable snapshots (these are posted to backend)
+                // editable snapshots
                 bank_snapshot: initial.bank_snapshot || '',
                 purchaser_snapshot: initial.purchaser_snapshot || '',
 
-                // lookup maps coming from controller
-                bankBlocks: initial.bank_blocks || {}, // { shipper_id: "bank text..." }
-                customerBlocks: initial.customer_blocks || {}, // { customer_id: "purchaser text..." }
+                // lookup maps
+                bankBlocks: initial.bank_blocks || {},
+                customerBlocks: initial.customer_blocks || {},
 
                 // items
                 items: initial.items || [],
 
                 init() {
-                    // defaults
-                    if (!this.payment_mode) {
-                        this.setDefaultPaymentMode();
-                    }
-                    if (!this.footer_note) {
-                        this.setFooterByType();
-                    }
+                    if (!this.payment_mode) this.setDefaultPaymentMode();
+                    if (!this.footer_note) this.setFooterByType();
                     if (!this.message_body) {
                         this.message_body = this.message_type === 'CIF' ?
                             this.cif_message_default :
                             this.fob_message_default;
                     }
 
-                    // initial auto-fill from current shipper/customer
                     this.updateBankSnapshot();
                     this.updatePurchaserSnapshot();
 
-                    // react on changes (Alpine 3)
                     if (this.$watch) {
                         this.$watch('shipper_id', () => this.updateBankSnapshot());
                         this.$watch('customer_id', () => this.updatePurchaserSnapshot());
@@ -487,24 +469,14 @@
 
                 // ---------- SNAPSHOT HELPERS ----------
                 updateBankSnapshot() {
-                    console.log(
-                        'shipper_id changed to:', this.shipper_id,
-                        ' bankBlocks entry =', this.bankBlocks[this.shipper_id]
-                    );
-
                     if (this.bankBlocks[this.shipper_id]) {
                         this.bank_snapshot = this.bankBlocks[this.shipper_id];
-                    } else if (!this.bank_snapshot) {
-                        this.bank_snapshot = '';
                     }
                 },
-
 
                 updatePurchaserSnapshot() {
                     if (this.customerBlocks[this.customer_id]) {
                         this.purchaser_snapshot = this.customerBlocks[this.customer_id];
-                    } else if (!this.purchaser_snapshot) {
-                        this.purchaser_snapshot = '';
                     }
                 },
 
@@ -569,14 +541,12 @@
 
                 // ---------- FOB / CIF ----------
                 onMessageTypeChanged() {
-                    if (this.message_type === 'CIF') {
-                        this.message_body = this.cif_message_default;
-                    } else {
-                        this.message_body = this.fob_message_default;
-                    }
+                    this.message_body = this.message_type === 'CIF' ?
+                        this.cif_message_default :
+                        this.fob_message_default;
                 },
 
-                // ---------- SUBMIT ----------
+                // ---------- SUBMIT (not used by preview, but safe to keep) ----------
                 submitForm() {
                     document.getElementById('salesInvoiceCreateForm').submit();
                 }
